@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+}
+
+.chart-gradient-accuracy {
+  background: linear-gradient(180deg, rgba(19, 127, 236, 0.2) 0%, rgba(19, 127, 236, 0) 100%);
+}
+
+.chart-line-accuracy {
+  stroke: #137fec;
+}
+
+.chart-line-loss {
+  stroke: #fa6238;
+}
+
+/* Scrollbar styling for dark mode */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}

@@ -1,0 +1,26 @@
+# Environment
+venv/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# Models
+models/*.h5
+models/*.keras
+!models/metrics.json
+
+# Node / React
+app/node_modules/
+app/dist/
+app/build/
+app/.env*
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+*.log
