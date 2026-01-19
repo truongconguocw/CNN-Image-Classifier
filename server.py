@@ -140,6 +140,7 @@ def predict():
             processed = preprocess_face(img_cv, active_model_id)
             preds = model.predict(processed)
             class_idx = np.argmax(preds[0])
+            print(f"DEBUG: Model đoán ra Index: {class_idx} (Tên: {CLASS_NAMES[class_idx]})")
             confidence = float(preds[0][class_idx]) * 100
             if confidence > 70.0:
                 raw_results.append({
@@ -153,7 +154,9 @@ def predict():
                 processed = preprocess_face(face_img, active_model_id)
                 preds = model.predict(processed)
                 class_idx = np.argmax(preds[0])
+                print(f"DEBUG: Model đoán ra Index: {class_idx} (Tên: {CLASS_NAMES[class_idx]})")
                 confidence = float(preds[0][class_idx]) * 100
+
                 if confidence > 70.0:
                     raw_results.append({
                         'bbox': [int(x), int(y), int(w), int(h)],
