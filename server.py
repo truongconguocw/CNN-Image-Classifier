@@ -11,12 +11,12 @@ app = Flask(__name__)
 CORS(app)
 MODELS_CONFIG = {
     'vgg16': {
-        'path': 'models/vgg16_best_fold_1.h5',
+        'path': 'models/vgg16_best_fold_5.h5',
         'name': 'VGG16 (Transfer Learning)',
         'preprocess': 'vgg16'
     },
     'custom_cnn': {
-        'path': 'models/custom_cnn_fold_2.h5',
+        'path': 'models/custom_cnn_fold_4.h5',
         'name': 'Custom CNN (Lightweight)',
         'preprocess': 'rescale'
     }
@@ -57,6 +57,42 @@ def preprocess_face(face_img, model_id):
         
     return img_array
 
+def apply_nms(detections, iou_threshold=0.3):
+    if len(detections) == 0:
+        return []
+    detections = sorted(detections, key=lambda x: x['confidence'], reverse=True)
+    
+    final_detections = []
+    
+    while len(detections) > 0:
+        best_box = detections.pop(0)
+        final_detections.append(best_box)
+
+        remaining = []
+        for box in detections:
+            x1_a, y1_a, w_a, h_a = best_box['bbox']
+            x1_b, y1_b, w_b, h_b = box['bbox']
+
+            xA = max(x1_a, x1_b)
+            yA = max(y1_a, y1_b)
+            xB = min(x1_a + w_a, x1_b + w_b)
+            yB = min(y1_a + h_a, y1_b + h_b)
+            
+            inter_width = max(0, xB - xA)
+            inter_height = max(0, yB - yA)
+            inter_area = inter_width * inter_height
+
+            box_a_area = w_a * h_a
+            box_b_area = w_b * h_b
+            union_area = box_a_area + box_b_area - inter_area
+            iou = inter_area / union_area if union_area > 0 else 0
+            if iou < iou_threshold:
+                remaining.append(box)
+        
+        detections = remaining
+        
+    return final_detections
+
 @app.route('/api/models', methods=['GET'])
 def get_models():
     return jsonify({
@@ -87,7 +123,6 @@ def predict():
     model = load_model(active_model_id)
     if not model:
         return jsonify({'error': 'Active model not loaded'}), 500
-    
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
     
@@ -98,35 +133,40 @@ def predict():
         nparr = np.frombuffer(img_bytes, np.uint8)
         img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
         
-        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
-        results = []
-        
+        raw_results = [] 
         if len(faces) == 0:
             processed = preprocess_face(img_cv, active_model_id)
             preds = model.predict(processed)
             class_idx = np.argmax(preds[0])
-            results.append({
-                'bbox': [0, 0, img_cv.shape[1], img_cv.shape[0]],
-                'prediction': CLASS_NAMES[class_idx],
-                'confidence': round(float(preds[0][class_idx]) * 100, 2)
-            })
+            confidence = float(preds[0][class_idx]) * 100
+            if confidence > 70.0:
+                raw_results.append({
+                    'bbox': [0, 0, img_cv.shape[1], img_cv.shape[0]],
+                    'prediction': CLASS_NAMES[class_idx],
+                    'confidence': round(confidence, 2)
+                })
         else:
             for (x, y, w, h) in faces:
                 face_img = img_cv[y:y+h, x:x+w]
                 processed = preprocess_face(face_img, active_model_id)
                 preds = model.predict(processed)
                 class_idx = np.argmax(preds[0])
-                results.append({
-                    'bbox': [int(x), int(y), int(w), int(h)],
-                    'prediction': CLASS_NAMES[class_idx],
-                    'confidence': round(float(preds[0][class_idx]) * 100, 2)
-                })
+                confidence = float(preds[0][class_idx]) * 100
+                if confidence > 70.0:
+                    raw_results.append({
+                        'bbox': [int(x), int(y), int(w), int(h)],
+                        'prediction': CLASS_NAMES[class_idx],
+                        'confidence': round(confidence, 2)
+                    })
+        clean_results = apply_nms(raw_results, iou_threshold=0.3)
         
-        return jsonify({'detections': results, 'model_used': active_model_id})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'detections': clean_results, 'model_used': active_model_id})
 
+    except Exception as e:
+        print(f"Lỗi server: {e}")
+        return jsonify({'error': str(e)}), 500
 @app.route('/api/metrics', methods=['GET'])
 def get_metrics():
     metrics_file = f'models/metrics_{active_model_id}.json'
