@@ -108,6 +108,30 @@ const MainLayout = () => {
                             <span className="material-symbols-outlined">history</span>
                             <p className="text-sm font-medium">K-Fold Validation</p>
                         </NavLink>
+                        <NavLink
+                            to="/set-faceid"
+                            className={({ isActive }) =>
+                                `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`
+                            }
+                        >
+                            <span className="material-symbols-outlined">face</span>
+                            <p className="text-sm font-medium">Set FaceID</p>
+                        </NavLink>
+                        <NavLink
+                            to="/users"
+                            className={({ isActive }) =>
+                                `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`
+                            }
+                        >
+                            <span className="material-symbols-outlined">manage_accounts</span>
+                            <p className="text-sm font-medium">User Management</p>
+                        </NavLink>
                     </nav>
                 </div>
             </aside>

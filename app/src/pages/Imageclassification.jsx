@@ -6,6 +6,7 @@ const ImageClassification = () => {
     const [prediction, setPrediction] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [predictionMethod, setPredictionMethod] = useState('cnn'); // 'cnn' or 'vector'
     const imgRef = useRef(null);
     const canvasRef = useRef(null);
 
@@ -66,8 +67,10 @@ const ImageClassification = () => {
         const formData = new FormData();
         formData.append('file', selectedFile);
 
+        const endpoint = predictionMethod === 'cnn' ? '/api/predict' : '/api/predict-vector';
+
         try {
-            const response = await fetch('/api/predict', {
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 body: formData,
             });
@@ -88,14 +91,37 @@ const ImageClassification = () => {
     return (
         <div className="space-y-10">
             {/* Header section */}
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Image Classification</h1>
-                    <p className="text-slate-400">Inference environment using ResNet-50 optimized for animal species.</p>
+                    <h1 className="text-3xl font-bold text-white mb-2">Face Recognition</h1>
+                    <p className="text-slate-400 max-w-xl">
+                        {predictionMethod === 'cnn'
+                            ? 'Using deep learning CNN for direct face classification.'
+                            : 'Using feature vector embeddings (Option B) for instant identity matching.'}
+                    </p>
                 </div>
-                <div className="bg-slate-900/50 border border-slate-700 rounded-full px-4 py-1.5 flex items-center gap-2">
-                    <span className="size-2 rounded-full bg-green-500"></span>
-                    <span className="text-xs font-bold text-white">Model: VGG16 Active</span>
+
+                <div className="flex flex-col items-end gap-3">
+                    <div className="bg-slate-900/60 p-1 rounded-xl border border-slate-800 flex gap-1">
+                        <button
+                            onClick={() => setPredictionMethod('cnn')}
+                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${predictionMethod === 'cnn' ? 'bg-primary text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            CNN Classification
+                        </button>
+                        <button
+                            onClick={() => setPredictionMethod('vector')}
+                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${predictionMethod === 'vector' ? 'bg-primary text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            Vector Matching
+                        </button>
+                    </div>
+                    <div className="bg-slate-900/50 border border-slate-700 rounded-full px-4 py-1.5 flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-green-500"></span>
+                        <span className="text-xs font-bold text-white">
+                            {predictionMethod === 'cnn' ? 'ResNet/Custom-CNN Active' : 'Vector-Embedding Engine'}
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -172,7 +198,12 @@ const ImageClassification = () => {
                                 <h3 className="font-bold text-white">Classification Result</h3>
                                 {prediction?.model_used && (
                                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/20 text-primary uppercase tracking-wider">
-                                        {prediction.model_used}
+                                        CNN: {prediction.model_used}
+                                    </span>
+                                )}
+                                {prediction?.method === 'vector_embedding' && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-500 uppercase tracking-wider">
+                                        VECTOR MATCHING
                                     </span>
                                 )}
                             </div>

@@ -4,6 +4,8 @@ import Dashboard from './pages/Dashboard';
 import ImageClassification from './pages/Imageclassification';
 import ModelEvolution from './pages/Modelevolution';
 import KFoldAnalysis from './pages/KFoldAnalysis';
+import SetFaceID from './pages/Setfaceid';
+import Users from './pages/Users';
 
 function App() {
     return (
@@ -15,7 +17,9 @@ function App() {
                     <Route path="classification" element={<ImageClassification />} />
                     <Route path="evolution" element={<ModelEvolution />} />
                     <Route path="kfold" element={<KFoldAnalysis />} />
+                    <Route path="users" element={<Users />} />
                 </Route>
+                <Route path="/set-faceid" element={<SetFaceID />} />
             </Routes>
         </Router>
     );
