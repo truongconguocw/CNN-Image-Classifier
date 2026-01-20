@@ -6,6 +6,7 @@ import ModelEvolution from './pages/Modelevolution';
 import KFoldAnalysis from './pages/KFoldAnalysis';
 import SetFaceID from './pages/Setfaceid';
 import Users from './pages/Users';
+import RealTimeRecognition from './pages/RealTimeRecognition';
 
 function App() {
     return (
@@ -18,6 +19,7 @@ function App() {
                     <Route path="evolution" element={<ModelEvolution />} />
                     <Route path="kfold" element={<KFoldAnalysis />} />
                     <Route path="users" element={<Users />} />
+                    <Route path="realtime" element={<RealTimeRecognition />} />
                 </Route>
                 <Route path="/set-faceid" element={<SetFaceID />} />
             </Routes>

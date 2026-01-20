@@ -132,6 +132,18 @@ const MainLayout = () => {
                             <span className="material-symbols-outlined">manage_accounts</span>
                             <p className="text-sm font-medium">User Management</p>
                         </NavLink>
+                        <NavLink
+                            to="/realtime"
+                            className={({ isActive }) =>
+                                `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`
+                            }
+                        >
+                            <span className="material-symbols-outlined">videocam</span>
+                            <p className="text-sm font-medium">Real-time Detection</p>
+                        </NavLink>
                     </nav>
                 </div>
             </aside>
