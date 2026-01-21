@@ -12,18 +12,21 @@ const SetFaceID = () => {
     const [userId, setUserId] = useState('');
     const [instruction, setInstruction] = useState('Position your face in the center');
     const [statusColor, setStatusColor] = useState('text-blue-500');
+    const [currentPose, setCurrentPose] = useState('unknown');
 
     const videoRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
     const streamRef = useRef(null);
     const validationIntervalRef = useRef(null);
+    const recordingIntervalRef = useRef(null);
 
     useEffect(() => {
         startCamera();
         return () => {
             stopCamera();
             if (validationIntervalRef.current) clearInterval(validationIntervalRef.current);
+            if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
         };
     }, []);
 
@@ -110,37 +113,69 @@ const SetFaceID = () => {
         mediaRecorderRef.current.onstop = saveRecording;
         mediaRecorderRef.current.start();
 
-        const duration = 8000;
-        const interval = 50;
-        let elapsed = 0;
+        let currentProgress = 0;
 
-        const timer = setInterval(() => {
-            elapsed += interval;
-            const currentProgress = Math.min((elapsed / duration) * 100, 100);
-            setProgress(currentProgress);
+        recordingIntervalRef.current = setInterval(async () => {
+            if (!videoRef.current || isSaved) return;
 
-            if (elapsed < 2000) {
-                setInstruction('Look straight at the camera');
-                setStatusColor('text-green-500');
-            } else if (elapsed < 3500) {
-                setInstruction('Slowly turn your head LEFT');
-                setStatusColor(elapsed > 2500 ? 'text-green-500' : 'text-blue-500');
-            } else if (elapsed < 5000) {
-                setInstruction('Slowly turn your head RIGHT');
-                setStatusColor(elapsed > 4000 ? 'text-green-500' : 'text-blue-500');
-            } else if (elapsed < 6500) {
-                setInstruction('Look slightly UP');
-                setStatusColor(elapsed > 5500 ? 'text-green-500' : 'text-blue-500');
-            } else if (elapsed < 8000) {
-                setInstruction('Look slightly DOWN');
-                setStatusColor(elapsed > 7000 ? 'text-green-500' : 'text-blue-500');
-            }
+            const canvas = document.createElement('canvas');
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
 
-            if (elapsed >= duration) {
-                clearInterval(timer);
-                stopRecording();
-            }
-        }, interval);
+            canvas.toBlob(async (blob) => {
+                if (!blob) return;
+                const formData = new FormData();
+                formData.append('file', blob, 'pose.jpg');
+
+                try {
+                    const response = await fetch('/api/detect-pose', { method: 'POST', body: formData });
+                    const data = await response.json();
+                    const pose = data.pose;
+                    setCurrentPose(pose);
+
+                    let expectedPose = 'unknown';
+                    let currentInst = '';
+
+                    if (currentProgress < 20) {
+                        expectedPose = 'frontal';
+                        currentInst = 'Look straight at the camera';
+                    } else if (currentProgress < 40) {
+                        expectedPose = 'left';
+                        currentInst = 'Slowly turn your head LEFT';
+                    } else if (currentProgress < 60) {
+                        expectedPose = 'right';
+                        currentInst = 'Slowly turn your head RIGHT';
+                    } else if (currentProgress < 80) {
+                        expectedPose = 'frontal';
+                        currentInst = 'Look slightly UP';
+                    } else {
+                        expectedPose = 'frontal';
+                        currentInst = 'Look slightly DOWN';
+                    }
+
+                    setInstruction(currentInst);
+
+                    // Chỉ tăng tiến trình nếu xoay đúng hướng
+                    // Ghi chú: frontal được chấp nhận cho cả giai đoạn up/down vì Haar khó phân biệt up/down cao thấp
+                    if (pose === expectedPose || (expectedPose === 'frontal' && pose !== 'unknown')) {
+                        currentProgress += 1; // Tăng chậm hơn để mượt (100 steps)
+                        setProgress(currentProgress);
+                        setStatusColor('text-green-500');
+                    } else {
+                        setStatusColor('text-blue-500');
+                    }
+
+                    if (currentProgress >= 100) {
+                        clearInterval(recordingIntervalRef.current);
+                        stopRecording();
+                    }
+                } catch (err) {
+                    console.error("Pose detection error:", err);
+                }
+            }, 'image/jpeg', 0.5);
+
+        }, 150);
     };
 
     const stopRecording = () => {
@@ -148,6 +183,7 @@ const SetFaceID = () => {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
             setIsComplete(true);
+            setInstruction('Processing data...');
         }
     };
 
@@ -200,10 +236,15 @@ const SetFaceID = () => {
                     <h1 className={`text-4xl font-bold tracking-tight leading-tight transition-all duration-500 ${isRecording ? statusColor : ''}`}>
                         {isRecording ? instruction : isSaved ? 'Verification Success!' : instruction}
                     </h1>
+                    {isRecording && (
+                        <p className="text-slate-500 text-[10px] font-mono uppercase tracking-[0.2em] mt-2">
+                            Status: <span className={statusColor}>{currentPose === 'unknown' ? 'PLEASE MOVE' : 'DETECTING ' + currentPose.toUpperCase()}</span>
+                        </p>
+                    )}
                 </div>
 
                 <div className="relative">
-                    <div className={`absolute inset-0 transition-opacity duration-1000 ${isRecording ? 'opacity-100' : 'opacity-20'} ${isRecording ? 'bg-blue-600/10' : 'bg-slate-600/5'} blur-[100px] rounded-full`}></div>
+                    <div className={`absolute inset-0 transition-opacity duration-1000 ${isRecording ? 'opacity-100' : 'opacity-20'} ${statusColor.replace('text-', 'bg-')}/10 blur-[100px] rounded-full`}></div>
 
                     <svg className="size-[420px] transform -rotate-90">
                         <circle cx="210" cy="210" r="200" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-slate-900" />
@@ -213,7 +254,7 @@ const SetFaceID = () => {
                             strokeDasharray={2 * Math.PI * 200}
                             strokeDashoffset={2 * Math.PI * 200 * (1 - progress / 100)}
                             strokeLinecap="round"
-                            className={`${isRecording ? statusColor : 'text-blue-500'} transition-all duration-300 linear`}
+                            className={`${statusColor} transition-all duration-300 linear`}
                         />
                     </svg>
 
@@ -233,7 +274,7 @@ const SetFaceID = () => {
                                     <div className="size-20 rounded-full bg-green-600 flex items-center justify-center mb-4">
                                         <span className="material-symbols-outlined text-white text-4xl">check</span>
                                     </div>
-                                    <p className="font-bold uppercase tracking-[0.2em] text-xs">Biometrics Enrolled</p>
+                                    <p className="font-bold uppercase tracking-[0.2em] text-xs text-white">Biometrics Enrolled</p>
                                 </div>
                             )}
 
@@ -280,19 +321,19 @@ const SetFaceID = () => {
                                         : 'bg-white text-black hover:scale-[1.02] active:scale-[0.98]'
                             } shadow-2xl relative overflow-hidden`}
                     >
-                        {isRecording ? 'Capturing Face...' : isSaved ? 'System Success' : isFaceValid ? 'Begin Face ID Setup' : 'Detecting Human Face...'}
+                        {isRecording ? 'Vui lòng xoay mặt...' : isSaved ? 'System Success' : isFaceValid ? 'Begin Face ID Setup' : 'Detecting Human Face...'}
                         {!isRecording && <span className="material-symbols-outlined">{isSaved ? 'done_all' : isFaceValid ? 'arrow_forward' : 'hourglass_bottom'}</span>}
                     </button>
 
-                    <p className="text-[9px] text-slate-600 mt-6 uppercase tracking-wider font-medium opacity-50">
-                        Human Identity Verification Phase • Secure
+                    <p className="text-[10px] text-slate-500 mt-6 uppercase tracking-wider font-bold">
+                        {isRecording ? 'Hệ thống đang kiểm tra tư thế của bạn...' : 'Tiến trình sẽ tạm dừng nếu bạn không di chuyển.'}
                     </p>
                 </div>
             </div>
 
             <footer className="w-full py-4 opacity-10 text-center pointer-events-none">
                 <p className="text-[9px] font-bold uppercase tracking-[0.3em]">
-                    Advanced Neural Processing System • Multi-Face Protection
+                    Advanced Neural Processing System • Real-time Pose Validation
                 </p>
             </footer>
 

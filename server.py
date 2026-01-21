@@ -71,6 +71,29 @@ def load_model(model_id):
 
 load_model(active_model_id)
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+profile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_profileface.xml')
+
+def detect_head_pose(img_cv):
+    """Xác định hướng mặt: frontal, left, right."""
+    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    
+    # 1. Kiểm tra mặt thẳng
+    faces = face_cascade.detectMultiScale(gray, 1.1, 5)
+    if len(faces) > 0:
+        return "frontal"
+    
+    # 2. Kiểm tra mặt nghiêng (Right Profile)
+    profiles = profile_cascade.detectMultiScale(gray, 1.1, 5)
+    if len(profiles) > 0:
+        return "right"
+        
+    # 3. Kiểm tra mặt nghiêng đối diện (Left Profile - lật ảnh để dùng profile cascade)
+    flipped_gray = cv2.flip(gray, 1)
+    profiles_flipped = profile_cascade.detectMultiScale(flipped_gray, 1.1, 5)
+    if len(profiles_flipped) > 0:
+        return "left"
+        
+    return "unknown"
 
 def preprocess_face(face_img, model_id):
     img_rgb = cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB)
@@ -232,6 +255,19 @@ def validate_face():
         return jsonify({'valid': True, 'message': 'Human face detected'})
     
     return jsonify({'valid': False, 'message': 'No human face detected'})
+
+@app.route('/api/detect-pose', methods=['POST'])
+def detect_pose_api():
+    """API xác thực hướng mặt thời gian thực."""
+    if 'file' not in request.files:
+        return jsonify({'pose': 'unknown'}), 400
+    
+    file = request.files['file']
+    nparr = np.frombuffer(file.read(), np.uint8)
+    img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    
+    pose = detect_head_pose(img_cv)
+    return jsonify({'pose': pose})
 
 @app.route('/api/predict-vector', methods=['POST'])
 def predict_vector():
