@@ -7,21 +7,23 @@ const SetFaceID = () => {
     const [isRecording, setIsRecording] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
+    const [isFaceValid, setIsFaceValid] = useState(false);
     const [fullName, setFullName] = useState('');
     const [userId, setUserId] = useState('');
     const [instruction, setInstruction] = useState('Position your face in the center');
+    const [statusColor, setStatusColor] = useState('text-blue-500');
 
     const videoRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
     const streamRef = useRef(null);
+    const validationIntervalRef = useRef(null);
 
     useEffect(() => {
         startCamera();
         return () => {
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-            }
+            stopCamera();
+            if (validationIntervalRef.current) clearInterval(validationIntervalRef.current);
         };
     }, []);
 
@@ -34,10 +36,48 @@ const SetFaceID = () => {
                 videoRef.current.srcObject = stream;
             }
             streamRef.current = stream;
+            startFaceValidationLoop();
         } catch (err) {
             console.error("Error accessing webcam:", err);
             alert("Cannot access camera. Please grant permission.");
         }
+    };
+
+    const stopCamera = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+        }
+    };
+
+    const startFaceValidationLoop = () => {
+        validationIntervalRef.current = setInterval(async () => {
+            if (!videoRef.current || isRecording || isSaved) return;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(videoRef.current, 0, 0);
+
+            canvas.toBlob(async (blob) => {
+                if (!blob) return;
+                const formData = new FormData();
+                formData.append('file', blob, 'check.jpg');
+
+                try {
+                    const response = await fetch('/api/validate-face', { method: 'POST', body: formData });
+                    const data = await response.json();
+                    setIsFaceValid(data.valid);
+                    if (data.valid) {
+                        setInstruction('Face detected! You can now start.');
+                    } else {
+                        setInstruction('Please position your face in the frame');
+                    }
+                } catch (err) {
+                    console.error("Validation failed:", err);
+                }
+            }, 'image/jpeg', 0.5);
+        }, 1000);
     };
 
     const startRecording = () => {
@@ -46,11 +86,19 @@ const SetFaceID = () => {
             return;
         }
 
+        if (!isFaceValid) {
+            alert("Vui lòng giữ đúng khuôn mặt người trước camera để tiếp tục.");
+            return;
+        }
+
+        if (validationIntervalRef.current) clearInterval(validationIntervalRef.current);
+
         setIsRecording(true);
         setIsComplete(false);
         setIsSaved(false);
         setProgress(0);
         chunksRef.current = [];
+        setStatusColor('text-blue-500');
 
         const options = { mimeType: 'video/webm;codecs=vp9,opus' };
         mediaRecorderRef.current = new MediaRecorder(streamRef.current, options);
@@ -71,11 +119,22 @@ const SetFaceID = () => {
             const currentProgress = Math.min((elapsed / duration) * 100, 100);
             setProgress(currentProgress);
 
-            if (elapsed < 2000) setInstruction('Look straight at the camera');
-            else if (elapsed < 3500) setInstruction('Slowly turn your head LEFT');
-            else if (elapsed < 5000) setInstruction('Slowly turn your head RIGHT');
-            else if (elapsed < 6500) setInstruction('Look slightly UP');
-            else if (elapsed < 8000) setInstruction('Look slightly DOWN');
+            if (elapsed < 2000) {
+                setInstruction('Look straight at the camera');
+                setStatusColor('text-green-500');
+            } else if (elapsed < 3500) {
+                setInstruction('Slowly turn your head LEFT');
+                setStatusColor(elapsed > 2500 ? 'text-green-500' : 'text-blue-500');
+            } else if (elapsed < 5000) {
+                setInstruction('Slowly turn your head RIGHT');
+                setStatusColor(elapsed > 4000 ? 'text-green-500' : 'text-blue-500');
+            } else if (elapsed < 6500) {
+                setInstruction('Look slightly UP');
+                setStatusColor(elapsed > 5500 ? 'text-green-500' : 'text-blue-500');
+            } else if (elapsed < 8000) {
+                setInstruction('Look slightly DOWN');
+                setStatusColor(elapsed > 7000 ? 'text-green-500' : 'text-blue-500');
+            }
 
             if (elapsed >= duration) {
                 clearInterval(timer);
@@ -89,7 +148,6 @@ const SetFaceID = () => {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
             setIsComplete(true);
-            setInstruction('Processing data...');
         }
     };
 
@@ -105,6 +163,11 @@ const SetFaceID = () => {
             if (response.ok) {
                 setIsSaved(true);
                 setInstruction('Face ID Setup Complete!');
+                setStatusColor('text-green-500');
+
+                setTimeout(() => {
+                    navigate('/dashboard');
+                }, 3000);
             } else {
                 const errorData = await response.json();
                 alert(`Error: ${errorData.error}`);
@@ -117,7 +180,6 @@ const SetFaceID = () => {
 
     return (
         <div className="min-h-screen bg-black text-white flex flex-col items-center justify-between p-8 font-sans overflow-hidden">
-            {/* Header */}
             <header className="w-full flex justify-between items-center opacity-80 z-10">
                 <div className="flex items-center gap-2">
                     <div className="bg-blue-600 rounded-lg p-1">
@@ -133,54 +195,31 @@ const SetFaceID = () => {
                 </button>
             </header>
 
-            {/* Main Content */}
             <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full max-w-2xl text-center relative z-10">
                 <div className="space-y-4">
-                    <h1 className="text-4xl font-bold tracking-tight leading-tight transition-all duration-500">
-                        {isRecording ? instruction : isSaved ? 'All Done!' : 'Secure Your Identity'}
+                    <h1 className={`text-4xl font-bold tracking-tight leading-tight transition-all duration-500 ${isRecording ? statusColor : ''}`}>
+                        {isRecording ? instruction : isSaved ? 'Verification Success!' : instruction}
                     </h1>
-                    <p className="text-slate-500 text-base h-6">
-                        {!isRecording && !isSaved && 'Follow the instructions to complete the scan.'}
-                    </p>
                 </div>
 
-                {/* Circular Progress & Camera Frame */}
                 <div className="relative">
-                    <div className={`absolute inset-0 transition-opacity duration-1000 ${isRecording ? 'opacity-100' : 'opacity-20'} bg-blue-600/10 blur-[100px] rounded-full`}></div>
+                    <div className={`absolute inset-0 transition-opacity duration-1000 ${isRecording ? 'opacity-100' : 'opacity-20'} ${isRecording ? 'bg-blue-600/10' : 'bg-slate-600/5'} blur-[100px] rounded-full`}></div>
 
                     <svg className="size-[420px] transform -rotate-90">
+                        <circle cx="210" cy="210" r="200" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-slate-900" />
                         <circle
-                            cx="210"
-                            cy="210"
-                            r="200"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                            fill="transparent"
-                            className="text-slate-900"
-                        />
-                        <circle
-                            cx="210"
-                            cy="210"
-                            r="200"
-                            stroke="currentColor"
-                            strokeWidth="6"
-                            fill="transparent"
+                            cx="210" cy="210" r="200"
+                            stroke="currentColor" strokeWidth="6" fill="transparent"
                             strokeDasharray={2 * Math.PI * 200}
                             strokeDashoffset={2 * Math.PI * 200 * (1 - progress / 100)}
                             strokeLinecap="round"
-                            className="text-blue-500 transition-all duration-300 linear"
+                            className={`${isRecording ? statusColor : 'text-blue-500'} transition-all duration-300 linear`}
                         />
                     </svg>
 
                     <div className="absolute inset-0 flex items-center justify-center p-4">
-                        <div className="size-[360px] rounded-full overflow-hidden border-2 border-slate-800 bg-slate-950 relative">
-                            <video
-                                ref={videoRef}
-                                autoPlay
-                                playsInline
-                                muted
-                                className="w-full h-full object-cover scale-x-[-1]"
-                            />
+                        <div className={`size-[360px] rounded-full overflow-hidden border-2 bg-slate-950 relative transition-colors duration-500 ${isFaceValid ? 'border-green-500/50' : 'border-slate-800'}`}>
+                            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
 
                             {isRecording && (
                                 <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-red-600 px-3 py-1 rounded-full animate-pulse z-20">
@@ -190,22 +229,20 @@ const SetFaceID = () => {
                             )}
 
                             {isSaved && (
-                                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-30 animate-fade-in">
-                                    <div className="size-20 rounded-full bg-blue-600 flex items-center justify-center mb-4">
+                                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-30 animate-fade-in text-green-500">
+                                    <div className="size-20 rounded-full bg-green-600 flex items-center justify-center mb-4">
                                         <span className="material-symbols-outlined text-white text-4xl">check</span>
                                     </div>
-                                    <p className="font-bold text-white uppercase tracking-[0.2em] text-xs">Success</p>
+                                    <p className="font-bold uppercase tracking-[0.2em] text-xs">Biometrics Enrolled</p>
+                                </div>
+                            )}
+
+                            {!isRecording && !isFaceValid && !isSaved && (
+                                <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-10">
+                                    <p className="text-white text-xs font-bold uppercase tracking-wider animate-pulse">Waiting for Human Face...</p>
                                 </div>
                             )}
                         </div>
-                    </div>
-
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-6 flex flex-col gap-4">
-                        {[33, 66, 100].map((threshold, idx) => (
-                            <div key={idx} className={`size-8 rounded-full flex items-center justify-center transition-all duration-500 ${isSaved || progress >= threshold ? 'bg-blue-600 scale-110' : 'bg-slate-900 opacity-50'}`}>
-                                <span className="material-symbols-outlined text-white text-xs font-bold">check</span>
-                            </div>
-                        ))}
                     </div>
                 </div>
 
@@ -214,22 +251,16 @@ const SetFaceID = () => {
                         <div className="text-left space-y-1.5 transition-transform">
                             <label className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Full Name</label>
                             <input
-                                type="text"
-                                value={fullName}
-                                onChange={(e) => setFullName(e.target.value)}
-                                placeholder="Alexander Mitchell"
-                                disabled={isRecording}
+                                type="text" value={fullName} onChange={(e) => setFullName(e.target.value)}
+                                placeholder="Alexander Mitchell" disabled={isRecording}
                                 className="w-full bg-slate-900/40 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-700 outline-none focus:border-blue-500/30 transition-all"
                             />
                         </div>
                         <div className="text-left space-y-1.5 transition-transform">
                             <label className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">User ID</label>
                             <input
-                                type="text"
-                                value={userId}
-                                onChange={(e) => setUserId(e.target.value)}
-                                placeholder="EMP-1234"
-                                disabled={isRecording}
+                                type="text" value={userId} onChange={(e) => setUserId(e.target.value)}
+                                placeholder="EMP-1234" disabled={isRecording}
                                 className="w-full bg-slate-900/40 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-700 outline-none focus:border-blue-500/30 transition-all"
                             />
                         </div>
@@ -238,28 +269,30 @@ const SetFaceID = () => {
 
                 <div className="w-full max-w-lg">
                     <button
-                        onClick={isSaved ? () => navigate('/dashboard') : startRecording}
-                        disabled={isRecording}
+                        onClick={startRecording}
+                        disabled={isRecording || isSaved || !isFaceValid}
                         className={`w-full font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 ${isSaved
-                                ? 'bg-blue-600 text-white hover:bg-blue-500'
+                                ? 'bg-green-600 text-white'
                                 : isRecording
                                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                    : 'bg-white text-black hover:scale-[1.02] active:scale-[0.98]'
+                                    : !isFaceValid
+                                        ? 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800'
+                                        : 'bg-white text-black hover:scale-[1.02] active:scale-[0.98]'
                             } shadow-2xl relative overflow-hidden`}
                     >
-                        {isRecording ? 'Capturing Face...' : isSaved ? 'Complete Registration' : 'Begin Face ID Setup'}
-                        {!isRecording && <span className="material-symbols-outlined">{isSaved ? 'done_all' : 'arrow_forward'}</span>}
+                        {isRecording ? 'Capturing Face...' : isSaved ? 'System Success' : isFaceValid ? 'Begin Face ID Setup' : 'Detecting Human Face...'}
+                        {!isRecording && <span className="material-symbols-outlined">{isSaved ? 'done_all' : isFaceValid ? 'arrow_forward' : 'hourglass_bottom'}</span>}
                     </button>
 
                     <p className="text-[9px] text-slate-600 mt-6 uppercase tracking-wider font-medium opacity-50">
-                        Secure end-to-end encryption active • Local data only
+                        Human Identity Verification Phase • Secure
                     </p>
                 </div>
             </div>
 
             <footer className="w-full py-4 opacity-10 text-center pointer-events-none">
                 <p className="text-[9px] font-bold uppercase tracking-[0.3em]">
-                    Advanced Neural Processing System
+                    Advanced Neural Processing System • Multi-Face Protection
                 </p>
             </footer>
 

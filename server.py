@@ -215,6 +215,24 @@ def predict():
         print(f"Lỗi server: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/validate-face', methods=['POST'])
+def validate_face():
+    """Kiểm tra xem có khuôn mặt người trong khung hình hay không trước khi bắt đầu."""
+    if 'file' not in request.files:
+        return jsonify({'valid': False, 'message': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    nparr = np.frombuffer(file.read(), np.uint8)
+    img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    
+    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.1, 5)
+    
+    if len(faces) > 0:
+        return jsonify({'valid': True, 'message': 'Human face detected'})
+    
+    return jsonify({'valid': False, 'message': 'No human face detected'})
+
 @app.route('/api/predict-vector', methods=['POST'])
 def predict_vector():
     """Nhận diện bằng so sánh Vector Embedding (Option B)."""
