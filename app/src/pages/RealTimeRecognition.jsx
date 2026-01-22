@@ -4,7 +4,7 @@ const RealTimeRecognition = () => {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const [isStreaming, setIsStreaming] = useState(false);
-    const [recognitionMethod, setRecognitionMethod] = useState('cnn'); // 'cnn' or 'vector'
+    const [recognitionMethod, setRecognitionMethod] = useState('cnn');
     const [lastFPS, setLastFPS] = useState(0);
 
     useEffect(() => {
@@ -12,7 +12,6 @@ const RealTimeRecognition = () => {
         return () => stopCamera();
     }, []);
 
-    // Frame processing loop
     useEffect(() => {
         let animationFrameId;
         let lastTime = Date.now();
@@ -24,20 +23,11 @@ const RealTimeRecognition = () => {
                 const canvas = canvasRef.current;
                 const ctx = canvas.getContext('2d');
 
-                // 1. Draw video to canvas (or just use video and draw overlay on separate canvas)
-                // Here we match canvas size to video
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                // 2. Prepare frame for sending
-                // We send a frame every X ms to avoid flooding, or use requestAnimationFrame for max speed
-                // For simplicity/performance balance, let's limit API calls but keep render loop fast
-
-                // (Optional: Only send frame every 200-500ms for inference)
             }
 
-            // Calculate FPS
             const now = Date.now();
             frameCount++;
             if (now - lastTime >= 1000) {
@@ -49,16 +39,12 @@ const RealTimeRecognition = () => {
             animationFrameId = requestAnimationFrame(processFrame);
         };
 
-        // Start loop only if streaming
         if (isStreaming) {
-            // animationFrameId = requestAnimationFrame(processFrame);
-            // NOTE: We need a separate interval for Inference to not block UI thread with fetch calls
         }
 
         return () => cancelAnimationFrame(animationFrameId);
     }, [isStreaming]);
 
-    // Separate Independent Inference Loop
     useEffect(() => {
         let intervalId;
 
@@ -68,13 +54,11 @@ const RealTimeRecognition = () => {
             try {
                 const video = videoRef.current;
 
-                // Capture current frame
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = video.videoWidth;
                 tempCanvas.height = video.videoHeight;
                 tempCanvas.getContext('2d').drawImage(video, 0, 0);
 
-                // Convert to blob
                 tempCanvas.toBlob(async (blob) => {
                     if (!blob) return;
 
@@ -96,7 +80,7 @@ const RealTimeRecognition = () => {
         };
 
         if (isStreaming) {
-            intervalId = setInterval(runInference, 200); // 5 FPS Inference
+            intervalId = setInterval(runInference, 200);
         }
 
         return () => clearInterval(intervalId);
@@ -107,9 +91,6 @@ const RealTimeRecognition = () => {
         const ctx = canvasRef.current.getContext('2d');
         const video = videoRef.current;
 
-        // Clear previous drawings (we need to redraw video frame first if we are drawing ON TOP of a blank canvas, 
-        // BUT if we want an overlay, we should have the <video> visible and a transparent <canvas> on top)
-        // Let's go with Transparent Canvas Overlay approach
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
         if (!detections) return;
@@ -117,12 +98,10 @@ const RealTimeRecognition = () => {
         detections.forEach(det => {
             const [x, y, w, h] = det.bbox;
 
-            // Draw Box
-            ctx.strokeStyle = recognitionMethod === 'cnn' ? '#3b82f6' : '#22c55e'; // Blue for CNN, Green for Vector
+            ctx.strokeStyle = recognitionMethod === 'cnn' ? '#3b82f6' : '#22c55e';
             ctx.lineWidth = 4;
             ctx.strokeRect(x, y, w, h);
 
-            // Draw Label
             ctx.fillStyle = recognitionMethod === 'cnn' ? '#3b82f6' : '#22c55e';
             const label = `${det.prediction} (${Math.round(det.confidence)}%)`;
             const textWidth = ctx.measureText(label).width;
@@ -164,7 +143,6 @@ const RealTimeRecognition = () => {
 
     return (
         <div className="h-full flex flex-col space-y-4">
-            {/* Header / Controls */}
             <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Real-time Recognition</h1>
@@ -191,7 +169,6 @@ const RealTimeRecognition = () => {
                 </div>
             </div>
 
-            {/* Video Container */}
             <div className="flex-1 relative bg-black rounded-3xl overflow-hidden shadow-2xl border border-slate-800 group">
                 {!isStreaming && (
                     <div className="absolute inset-0 flex items-center justify-center text-slate-500">
@@ -211,7 +188,6 @@ const RealTimeRecognition = () => {
                     className="absolute inset-0 w-full h-full pointer-events-none"
                 />
 
-                {/* Tech Overlay */}
                 <div className="absolute top-4 left-4 flex flex-col gap-2 opacity-50 pointer-events-none">
                     <div className="text-[10px] font-mono text-green-500 bg-black/50 px-2 py-1 rounded">
                         SYSTEM: ONLINE

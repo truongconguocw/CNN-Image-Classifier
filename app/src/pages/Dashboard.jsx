@@ -39,7 +39,6 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6">
                     <div className="flex justify-between items-start mb-4">
@@ -84,9 +83,7 @@ const Dashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                {/* Left: Architecture & Hyperparameters */}
                 <div className="xl:col-span-1 space-y-6">
-                    {/* Model Architecture */}
                     <div className="bg-white dark:bg-background-dark rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
                             <h3 className="font-bold text-base">Model Architecture</h3>
@@ -125,7 +122,6 @@ const Dashboard = () => {
                             </button>
                         </div>
                     </div>
-                    {/* Hyperparameters */}
                     <div className="bg-white dark:bg-background-dark rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                         <div className="p-5 border-b border-slate-200 dark:border-slate-800">
                             <h3 className="font-bold text-base">Hyperparameters</h3>
@@ -172,7 +168,6 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Right: Live Charts & Progress */}
                 <div className="xl:col-span-2 space-y-6">
                     <div className="bg-white dark:bg-background-dark rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-full">
                         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
@@ -192,9 +187,7 @@ const Dashboard = () => {
                             </div>
                         </div>
                         <div className="flex-1 p-6 flex items-end gap-1 min-h-[400px]">
-                            {/* Faux Chart Visualization */}
                             <div className="w-full h-full relative border-l border-b border-slate-200 dark:border-slate-800">
-                                {/* Grid lines */}
                                 <div className="absolute inset-0 flex flex-col justify-between opacity-10 pointer-events-none">
                                     <div className="border-t border-slate-400 w-full h-0"></div>
                                     <div className="border-t border-slate-400 w-full h-0"></div>
@@ -202,13 +195,11 @@ const Dashboard = () => {
                                     <div className="border-t border-slate-400 w-full h-0"></div>
                                 </div>
 
-                                {/* Simplified SVG for lines */}
                                 <svg
                                     className="absolute inset-0 w-full h-full preserve-3d"
                                     preserveAspectRatio="none"
                                     viewBox="0 0 100 100"
                                 >
-                                    {/* Loss Curve */}
                                     <path
                                         d="M0 20 Q 25 25, 50 45 T 100 80"
                                         fill="none"
@@ -216,7 +207,6 @@ const Dashboard = () => {
                                         strokeWidth="2"
                                         vectorEffect="non-scaling-stroke"
                                     ></path>
-                                    {/* Accuracy Curve */}
                                     <path
                                         d="M0 90 Q 25 80, 50 40 T 100 10"
                                         fill="none"
@@ -224,7 +214,6 @@ const Dashboard = () => {
                                         strokeWidth="2"
                                         vectorEffect="non-scaling-stroke"
                                     ></path>
-                                    {/* Gradient area */}
                                     <path
                                         d="M0 90 Q 25 80, 50 40 T 100 10 L 100 100 L 0 100 Z"
                                         fill="url(#accGrad)"
@@ -238,7 +227,6 @@ const Dashboard = () => {
                                     </defs>
                                 </svg>
 
-                                {/* Tooltip marker example */}
                                 <div className="absolute left-[70%] top-[30%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
                                     <div className="size-3 rounded-full border-2 border-white bg-primary shadow-lg z-10"></div>
                                     <div className="mt-2 bg-slate-900/90 text-white text-[10px] px-2 py-1 rounded shadow-xl whitespace-nowrap border border-slate-700">
@@ -263,7 +251,6 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    {/* Console Output */}
                     <div className="bg-[#0c1219] rounded-xl border border-slate-800 overflow-hidden font-mono">
                         <div className="px-4 py-2 bg-slate-800/50 flex items-center justify-between">
                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">System Logs</span>

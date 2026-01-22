@@ -24,7 +24,6 @@ const ModelEvolution = () => {
 
     return (
         <div className="space-y-8">
-            {/* Header section */}
             <div className="flex justify-between items-start">
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-2 font-display tracking-tight">Model Evolution</h1>
@@ -36,7 +35,6 @@ const ModelEvolution = () => {
                 </div>
             </div>
 
-            {/* Performance Snapshot Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6">
                     <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-2">Stability Score</p>
@@ -69,7 +67,6 @@ const ModelEvolution = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* Main Graph Area */}
                 <div className="lg:col-span-8 bg-slate-900/40 border border-slate-800 rounded-2xl flex flex-col overflow-hidden">
                     <div className="p-5 border-b border-slate-800 flex justify-between items-center">
                         <div className="flex items-center gap-3">
@@ -88,7 +85,6 @@ const ModelEvolution = () => {
                         </div>
                     </div>
                     <div className="flex-1 p-8 min-h-[350px] relative">
-                        {/* Dynamic SVG Chart */}
                         <svg className="w-full h-full" viewBox="0 0 100 40" preserveAspectRatio="none">
                             <defs>
                                 <linearGradient id="lineGrad" x1="0" x2="0" y1="0" y2="1">
@@ -108,7 +104,6 @@ const ModelEvolution = () => {
                             />
                         </svg>
 
-                        {/* X-Axis labels */}
                         <div className="absolute bottom-4 left-8 right-8 flex justify-between text-[10px] font-bold text-slate-600 uppercase tracking-widest">
                             <span>Fold 1</span>
                             <span>Fold 2</span>
@@ -119,7 +114,6 @@ const ModelEvolution = () => {
                     </div>
                 </div>
 
-                {/* Training Sessions Sidebar */}
                 <div className="lg:col-span-4 bg-slate-900/40 border border-slate-800 rounded-2xl flex flex-col">
                     <div className="p-5 border-b border-slate-800 flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -150,7 +144,6 @@ const ModelEvolution = () => {
                 </div>
             </div>
 
-            {/* Bottom Section: Parameter Tuning History */}
             <div className="bg-slate-900/40 border border-slate-800 rounded-2xl overflow-hidden">
                 <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-800/20">
                     <div className="flex items-center gap-3">

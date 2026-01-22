@@ -13,7 +13,6 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-# Cấu hình phục vụ file tĩnh để xem video/ảnh
 @app.route('/data/<path:filename>')
 def serve_data(filename):
     return send_from_directory('data', filename)
@@ -37,7 +36,6 @@ CLASS_NAMES = ['Benzema', 'Messi', 'Ronaldo']
 active_model_id = 'vgg16'
 loaded_models = {}
 
-# Database Initialization
 def init_db():
     conn = sqlite3.connect('faceid.db')
     cursor = conn.cursor()
@@ -74,20 +72,16 @@ face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_fronta
 profile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_profileface.xml')
 
 def detect_head_pose(img_cv):
-    """Xác định hướng mặt: frontal, left, right."""
     gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
     
-    # 1. Kiểm tra mặt thẳng
     faces = face_cascade.detectMultiScale(gray, 1.1, 5)
     if len(faces) > 0:
         return "frontal"
     
-    # 2. Kiểm tra mặt nghiêng (Right Profile)
     profiles = profile_cascade.detectMultiScale(gray, 1.1, 5)
     if len(profiles) > 0:
         return "right"
         
-    # 3. Kiểm tra mặt nghiêng đối diện (Left Profile - lật ảnh để dùng profile cascade)
     flipped_gray = cv2.flip(gray, 1)
     profiles_flipped = profile_cascade.detectMultiScale(flipped_gray, 1.1, 5)
     if len(profiles_flipped) > 0:
@@ -110,14 +104,10 @@ def preprocess_face(face_img, model_id):
     return img_array
 
 def get_embedding(img_cv, model_id):
-    """Trích xuất vector đặc trưng từ mô hình CNN (bỏ tầng softmax)."""
     model = load_model(model_id)
     if not model:
         return None
     
-    # Tạo mô hình trung gian để lấy đầu ra của tầng GlobalAveragePooling2D hoặc tầng Dense cuối
-    # Đối với VGG16 của Keras, tầng trước prediction thường là 'fc2' hoặc ta dùng Feature Extractor
-    # Ở đây ta sẽ lấy Output của tầng gần cuối
     intermediate_model = tf.keras.Model(inputs=model.input, outputs=model.layers[-2].output)
     
     processed = preprocess_face(img_cv, model_id)
@@ -207,7 +197,6 @@ def predict():
             processed = preprocess_face(img_cv, active_model_id)
             preds = model.predict(processed)
             class_idx = np.argmax(preds[0])
-            print(f"DEBUG: Model đoán ra Index: {class_idx} (Tên: {CLASS_NAMES[class_idx]})")
             confidence = float(preds[0][class_idx]) * 100
             if confidence > 70.0:
                 raw_results.append({
@@ -221,7 +210,6 @@ def predict():
                 processed = preprocess_face(face_img, active_model_id)
                 preds = model.predict(processed)
                 class_idx = np.argmax(preds[0])
-                print(f"DEBUG: Model đoán ra Index: {class_idx} (Tên: {CLASS_NAMES[class_idx]})")
                 confidence = float(preds[0][class_idx]) * 100
 
                 if confidence > 70.0:
@@ -231,16 +219,13 @@ def predict():
                         'confidence': round(confidence, 2)
                     })
         clean_results = apply_nms(raw_results, iou_threshold=0.3)
-        
         return jsonify({'detections': clean_results, 'model_used': active_model_id})
 
     except Exception as e:
-        print(f"Lỗi server: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/validate-face', methods=['POST'])
 def validate_face():
-    """Kiểm tra xem có khuôn mặt người trong khung hình hay không trước khi bắt đầu."""
     if 'file' not in request.files:
         return jsonify({'valid': False, 'message': 'No file uploaded'}), 400
     
@@ -258,7 +243,6 @@ def validate_face():
 
 @app.route('/api/detect-pose', methods=['POST'])
 def detect_pose_api():
-    """API xác thực hướng mặt thời gian thực."""
     if 'file' not in request.files:
         return jsonify({'pose': 'unknown'}), 400
     
@@ -271,7 +255,6 @@ def detect_pose_api():
 
 @app.route('/api/predict-vector', methods=['POST'])
 def predict_vector():
-    """Nhận diện bằng so sánh Vector Embedding (Option B)."""
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
     
@@ -279,14 +262,12 @@ def predict_vector():
     nparr = np.frombuffer(file.read(), np.uint8)
     img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     
-    # 1. Phát hiện khuôn mặt
     gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, 1.1, 5)
     
     if len(faces) == 0:
         return jsonify({'detections': [], 'message': 'No face detected'})
 
-    # 2. Lấy tất cả embeddings từ DB
     conn = sqlite3.connect('faceid.db')
     cursor = conn.cursor()
     cursor.execute('SELECT user_id, full_name, embedding FROM users WHERE embedding IS NOT NULL')
@@ -300,12 +281,11 @@ def predict_vector():
         current_emb = get_embedding(face_img, active_model_id)
         
         best_match = "Unknown"
-        min_dist = 100.0 # Ngưỡng khoảng cách khởi tạo
-        threshold = 1.0 # Ngưỡng chấp nhận (cần tùy chỉnh sau khi test)
+        min_dist = 100.0
+        threshold = 1.0
 
         for user_id, full_name, emb_str in db_users:
             saved_emb = np.array(list(map(float, emb_str.split(","))))
-            # Tính khoảng cách Euclidean
             dist = np.linalg.norm(current_emb - saved_emb)
             
             if dist < min_dist:
@@ -321,6 +301,7 @@ def predict_vector():
         })
 
     return jsonify({'detections': results, 'method': 'vector_embedding'})
+
 @app.route('/api/metrics', methods=['GET'])
 def get_metrics():
     metrics_file = f'models/metrics_{active_model_id}.json'
@@ -341,12 +322,10 @@ def get_metrics():
     })
 
 def extract_frames(video_path, output_dir, max_frames=50):
-    """Trích xuất khung hình chứa khuôn mặt từ video để tạo dataset."""
     cap = cv2.VideoCapture(video_path)
     count = 0
     saved_count = 0
     
-    # Lấy tổng số frame để tính toán bước nhảy (step)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     step = max(1, total_frames // max_frames)
 
@@ -355,21 +334,18 @@ def extract_frames(video_path, output_dir, max_frames=50):
         if not ret:
             break
         
-        # Chỉ xử lý các frame theo bước nhảy để dàn trải dữ liệu
         if count % step == 0:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             faces = face_cascade.detectMultiScale(gray, 1.1, 4)
             
             for (x, y, w, h) in faces:
-                # Cắt lấy vùng mặt
                 face_img = frame[y:y+h, x:x+w]
-                # Resize về kích thước chuẩn của model
                 face_img = cv2.resize(face_img, (224, 224))
                 
                 img_name = os.path.join(output_dir, f"face_{saved_count:03d}.jpg")
                 cv2.imwrite(img_name, face_img)
                 saved_count += 1
-                break # Chỉ lấy 1 mặt mỗi frame
+                break
 
         count += 1
     
@@ -378,7 +354,6 @@ def extract_frames(video_path, output_dir, max_frames=50):
 
 @app.route('/api/users', methods=['GET'])
 def get_users():
-    """Lấy danh sách người dùng đã đăng ký."""
     try:
         conn = sqlite3.connect('faceid.db')
         conn.row_factory = sqlite3.Row
@@ -387,7 +362,6 @@ def get_users():
         users = [dict(row) for row in cursor.fetchall()]
         conn.close()
         
-        # Bổ sung số lượng ảnh trong dataset cho mỗi user
         for user in users:
             dataset_path = f"data/datasets/{user['user_id']}"
             if os.path.exists(dataset_path):
@@ -401,16 +375,13 @@ def get_users():
 
 @app.route('/api/users/<user_id>', methods=['DELETE'])
 def delete_user(user_id):
-    """Xóa người dùng và các file liên quan."""
     try:
-        # 1. Xóa trong DB
         conn = sqlite3.connect('faceid.db')
         cursor = conn.cursor()
         cursor.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
         conn.commit()
         conn.close()
         
-        # 2. Xóa file vật lý
         raw_video = f"data/raw_videos/{user_id}.webm"
         dataset_dir = f"data/datasets/{user_id}"
         
@@ -435,17 +406,14 @@ def enroll_user():
     if not user_id or not full_name:
         return jsonify({'error': 'Missing user information'}), 400
 
-    # 1. Save Video
     raw_video_dir = 'data/raw_videos'
     os.makedirs(raw_video_dir, exist_ok=True)
     video_path = os.path.join(raw_video_dir, f"{user_id}.webm")
     video_file.save(video_path)
 
-    # 2. Create Dataset Directory (for snapshots or future extraction)
     user_dataset_dir = f'data/datasets/{user_id}'
     os.makedirs(user_dataset_dir, exist_ok=True)
 
-    # 3. Save to Database
     try:
         conn = sqlite3.connect('faceid.db')
         cursor = conn.cursor()
@@ -456,11 +424,8 @@ def enroll_user():
         conn.commit()
         conn.close()
         
-        # 4. Tự động cắt ảnh từ video vừa lưu (Bước 3) & Tính Embedding (Bước 4)
         try:
             frames_saved = extract_frames(video_path, user_dataset_dir)
-            
-            # Tính embedding trung bình từ các ảnh vừa cắt
             embeddings = []
             for img_name in os.listdir(user_dataset_dir):
                 if img_name.endswith('.jpg'):
@@ -474,16 +439,13 @@ def enroll_user():
                 avg_embedding = np.mean(embeddings, axis=0)
                 emb_str = ",".join(map(str, avg_embedding.tolist()))
                 
-                # Cập nhật embedding vào database
                 conn = sqlite3.connect('faceid.db')
                 cursor = conn.cursor()
                 cursor.execute('UPDATE users SET embedding = ? WHERE user_id = ?', (emb_str, user_id))
                 conn.commit()
                 conn.close()
 
-            print(f"DEBUG: Đã trích xuất {frames_saved} ảnh và tính toán Embedding.")
         except Exception as e:
-            print(f"Lỗi khi xử lý dữ liệu sau đăng ký: {e}")
             frames_saved = 0
 
         return jsonify({

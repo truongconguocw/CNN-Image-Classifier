@@ -4,7 +4,7 @@ const Users = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState(null);
-    const [viewMode, setViewMode] = useState(null); // 'video' or 'dataset'
+    const [viewMode, setViewMode] = useState(null);
     const [datasetImages, setDatasetImages] = useState([]);
 
     useEffect(() => {
@@ -42,7 +42,6 @@ const Users = () => {
         setSelectedUser(user);
         setViewMode(mode);
         if (mode === 'dataset') {
-            // Hiển thị danh sách ảnh (giả sử có 50 tấm theo logic backend)
             const images = Array.from({ length: user.image_count }, (_, i) =>
                 `/data/datasets/${user.user_id}/face_${String(i).padStart(3, '0')}.jpg`
             );
@@ -58,7 +57,6 @@ const Users = () => {
 
     return (
         <div className="space-y-10">
-            {/* Header section */}
             <div className="flex justify-between items-start">
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-2">User Management</h1>
@@ -70,7 +68,6 @@ const Users = () => {
                 </div>
             </div>
 
-            {/* Main Table Container */}
             <div className="bg-slate-900/40 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
                 {loading ? (
                     <div className="p-20 flex flex-col items-center justify-center gap-4 text-slate-500">
@@ -146,11 +143,9 @@ const Users = () => {
                 )}
             </div>
 
-            {/* Modal Overlay */}
             {selectedUser && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-fade-in">
                     <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)]">
-                        {/* Modal Header */}
                         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
                             <div className="flex items-center gap-4">
                                 <div className="size-10 rounded-xl bg-blue-600 flex items-center justify-center">
@@ -171,7 +166,6 @@ const Users = () => {
                             </button>
                         </div>
 
-                        {/* Modal Content */}
                         <div className="flex-1 overflow-y-auto p-8">
                             {viewMode === 'video' ? (
                                 <div className="flex items-center justify-center h-full max-h-[600px] rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-2xl">
@@ -196,7 +190,6 @@ const Users = () => {
                             )}
                         </div>
 
-                        {/* Modal Footer */}
                         <div className="p-6 bg-slate-950/50 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                             <span>{selectedUser.user_id} • {selectedUser.image_count} assets processed</span>
                             <span>Secure storage • Encryption active</span>

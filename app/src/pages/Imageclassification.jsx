@@ -6,7 +6,7 @@ const ImageClassification = () => {
     const [prediction, setPrediction] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [predictionMethod, setPredictionMethod] = useState('cnn'); // 'cnn' or 'vector'
+    const [predictionMethod, setPredictionMethod] = useState('cnn');
     const imgRef = useRef(null);
     const canvasRef = useRef(null);
 
@@ -16,32 +16,27 @@ const ImageClassification = () => {
             const img = imgRef.current;
             const ctx = canvas.getContext('2d');
 
-            // Set canvas size to match image display size
             canvas.width = img.clientWidth;
             canvas.height = img.clientHeight;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Calculate scale factors
             const scaleX = img.clientWidth / img.naturalWidth;
             const scaleY = img.clientHeight / img.naturalHeight;
 
             prediction.detections.forEach((det, idx) => {
                 const [x, y, w, h] = det.bbox;
 
-                // Draw box
                 ctx.strokeStyle = '#137fec';
                 ctx.lineWidth = 3;
                 ctx.strokeRect(x * scaleX, y * scaleY, w * scaleX, h * scaleY);
 
-                // Draw label background
                 ctx.fillStyle = '#137fec';
                 ctx.font = 'bold 12px Inter, system-ui, sans-serif';
                 const label = `${det.prediction} (${det.confidence}%)`;
                 const textWidth = ctx.measureText(label).width;
                 ctx.fillRect(x * scaleX, (y * scaleY) - 20, textWidth + 10, 20);
 
-                // Draw text
                 ctx.fillStyle = 'white';
                 ctx.fillText(label, (x * scaleX) + 5, (y * scaleY) - 5);
             });
@@ -90,7 +85,6 @@ const ImageClassification = () => {
 
     return (
         <div className="space-y-10">
-            {/* Header section */}
             <div className="flex justify-between items-end">
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-2">Face Recognition</h1>
@@ -125,9 +119,7 @@ const ImageClassification = () => {
                 </div>
             </div>
 
-            {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* Upload Area */}
                 <div
                     className={`lg:col-span-7 bg-slate-900/30 border-2 border-dashed ${selectedFile ? 'border-primary/50' : 'border-slate-800'} rounded-2xl flex flex-col items-center justify-center p-12 py-24 group hover:border-primary/50 transition-colors cursor-pointer relative`}
                     onClick={() => document.getElementById('fileInput').click()}
@@ -149,7 +141,6 @@ const ImageClassification = () => {
                                     alt="Preview"
                                     className="max-h-96 rounded-xl shadow-2xl border-4 border-slate-800"
                                     onLoad={() => {
-                                        // Trigger a redraw when image loads
                                         if (prediction) setPrediction({ ...prediction });
                                     }}
                                 />
@@ -189,7 +180,6 @@ const ImageClassification = () => {
                     )}
                 </div>
 
-                {/* Result Sidebar */}
                 <div className="lg:col-span-5 space-y-6">
                     <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 shadow-xl h-full flex flex-col">
                         <div className="flex items-center gap-3 mb-8">
@@ -268,7 +258,6 @@ const ImageClassification = () => {
                 </div>
             </div>
 
-            {/* History Section */}
             <div className="space-y-4 pt-10">
                 <div className="flex justify-between items-center">
                     <h2 className="text-xl font-bold text-white">Recent Analysis History</h2>
@@ -303,7 +292,6 @@ const ImageClassification = () => {
                 </div>
             </div>
 
-            {/* Footer */}
             <footer className="border-t border-slate-800 pt-8 mt-12 flex flex-col md:flex-row justify-between items-center gap-4 text-[11px] text-slate-500">
                 <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-sm">copyright</span>

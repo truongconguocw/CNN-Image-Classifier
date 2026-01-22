@@ -5,7 +5,6 @@ const SetFaceID = () => {
     const navigate = useNavigate();
     const [progress, setProgress] = useState(0);
     const [isRecording, setIsRecording] = useState(false);
-    const [isComplete, setIsComplete] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [isFaceValid, setIsFaceValid] = useState(false);
     const [fullName, setFullName] = useState('');
@@ -53,6 +52,7 @@ const SetFaceID = () => {
     };
 
     const startFaceValidationLoop = () => {
+        if (validationIntervalRef.current) clearInterval(validationIntervalRef.current);
         validationIntervalRef.current = setInterval(async () => {
             if (!videoRef.current || isRecording || isSaved) return;
 
@@ -97,97 +97,109 @@ const SetFaceID = () => {
         if (validationIntervalRef.current) clearInterval(validationIntervalRef.current);
 
         setIsRecording(true);
-        setIsComplete(false);
         setIsSaved(false);
         setProgress(0);
         chunksRef.current = [];
         setStatusColor('text-blue-500');
 
-        const options = { mimeType: 'video/webm;codecs=vp9,opus' };
-        mediaRecorderRef.current = new MediaRecorder(streamRef.current, options);
+        try {
+            const options = { mimeType: 'video/webm;codecs=vp9,opus' };
+            mediaRecorderRef.current = new MediaRecorder(streamRef.current, options);
 
-        mediaRecorderRef.current.ondataavailable = (e) => {
-            if (e.data.size > 0) chunksRef.current.push(e.data);
-        };
-
-        mediaRecorderRef.current.onstop = saveRecording;
-        mediaRecorderRef.current.start();
-
-        let currentProgress = 0;
-
-        recordingIntervalRef.current = setInterval(async () => {
-            if (!videoRef.current || isSaved) return;
-
-            const canvas = document.createElement('canvas');
-            canvas.width = videoRef.current.videoWidth;
-            canvas.height = videoRef.current.videoHeight;
-            canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
-
-            canvas.toBlob(async (blob) => {
-                if (!blob) return;
-                const formData = new FormData();
-                formData.append('file', blob, 'pose.jpg');
-
-                try {
-                    const response = await fetch('/api/detect-pose', { method: 'POST', body: formData });
-                    const data = await response.json();
-                    const pose = data.pose;
-                    setCurrentPose(pose);
-
-                    let expectedPose = 'unknown';
-                    let currentInst = '';
-
-                    if (currentProgress < 20) {
-                        expectedPose = 'frontal';
-                        currentInst = 'Look straight at the camera';
-                    } else if (currentProgress < 40) {
-                        expectedPose = 'left';
-                        currentInst = 'Slowly turn your head LEFT';
-                    } else if (currentProgress < 60) {
-                        expectedPose = 'right';
-                        currentInst = 'Slowly turn your head RIGHT';
-                    } else if (currentProgress < 80) {
-                        expectedPose = 'frontal';
-                        currentInst = 'Look slightly UP';
-                    } else {
-                        expectedPose = 'frontal';
-                        currentInst = 'Look slightly DOWN';
-                    }
-
-                    setInstruction(currentInst);
-
-                    // Chỉ tăng tiến trình nếu xoay đúng hướng
-                    // Ghi chú: frontal được chấp nhận cho cả giai đoạn up/down vì Haar khó phân biệt up/down cao thấp
-                    if (pose === expectedPose || (expectedPose === 'frontal' && pose !== 'unknown')) {
-                        currentProgress += 1; // Tăng chậm hơn để mượt (100 steps)
-                        setProgress(currentProgress);
-                        setStatusColor('text-green-500');
-                    } else {
-                        setStatusColor('text-blue-500');
-                    }
-
-                    if (currentProgress >= 100) {
-                        clearInterval(recordingIntervalRef.current);
-                        stopRecording();
-                    }
-                } catch (err) {
-                    console.error("Pose detection error:", err);
+            mediaRecorderRef.current.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) {
+                    chunksRef.current.push(e.data);
                 }
-            }, 'image/jpeg', 0.5);
+            };
 
-        }, 150);
+            mediaRecorderRef.current.onstop = saveRecording;
+            mediaRecorderRef.current.start(1000);
+
+            let currentProgress = 0;
+
+            recordingIntervalRef.current = setInterval(async () => {
+                if (!videoRef.current || isSaved) return;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = videoRef.current.videoWidth;
+                canvas.height = videoRef.current.videoHeight;
+                canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
+
+                canvas.toBlob(async (blob) => {
+                    if (!blob) return;
+                    const formData = new FormData();
+                    formData.append('file', blob, 'pose.jpg');
+
+                    try {
+                        const response = await fetch('/api/detect-pose', { method: 'POST', body: formData });
+                        const data = await response.json();
+                        const pose = data.pose;
+                        setCurrentPose(pose);
+
+                        let expectedPose = 'unknown';
+                        let currentInst = '';
+
+                        if (currentProgress < 20) {
+                            expectedPose = 'frontal';
+                            currentInst = 'Look straight at the camera';
+                        } else if (currentProgress < 40) {
+                            expectedPose = 'left';
+                            currentInst = 'Slowly turn your head LEFT';
+                        } else if (currentProgress < 60) {
+                            expectedPose = 'right';
+                            currentInst = 'Slowly turn your head RIGHT';
+                        } else if (currentProgress < 80) {
+                            expectedPose = 'frontal';
+                            currentInst = 'Look slightly UP';
+                        } else {
+                            expectedPose = 'frontal';
+                            currentInst = 'Look slightly DOWN';
+                        }
+
+                        setInstruction(currentInst);
+
+                        if (pose === expectedPose || (expectedPose === 'frontal' && pose !== 'unknown')) {
+                            currentProgress += 2;
+                            setProgress(Math.min(currentProgress, 100));
+                            setStatusColor('text-green-500');
+                        } else {
+                            setStatusColor('text-blue-500');
+                        }
+
+                        if (currentProgress >= 100) {
+                            clearInterval(recordingIntervalRef.current);
+                            stopRecording();
+                        }
+                    } catch (err) {
+                        console.error("Pose detection error:", err);
+                    }
+                }, 'image/jpeg', 0.5);
+
+            }, 200);
+        } catch (err) {
+            console.error("MediaRecorder start failed:", err);
+            alert("Failed to start recording.");
+            setIsRecording(false);
+        }
     };
 
     const stopRecording = () => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
-            setIsComplete(true);
             setInstruction('Processing data...');
         }
     };
 
     const saveRecording = async () => {
+        if (chunksRef.current.length === 0) {
+            alert("No video data captured. Please try again.");
+            setIsRecording(false);
+            setProgress(0);
+            startFaceValidationLoop();
+            return;
+        }
+
         const blob = new Blob(chunksRef.current, { type: 'video/webm' });
         const formData = new FormData();
         formData.append('video', blob, `${userId}.webm`);
@@ -200,17 +212,19 @@ const SetFaceID = () => {
                 setIsSaved(true);
                 setInstruction('Face ID Setup Complete!');
                 setStatusColor('text-green-500');
-
-                setTimeout(() => {
-                    navigate('/dashboard');
-                }, 3000);
             } else {
                 const errorData = await response.json();
-                alert(`Error: ${errorData.error}`);
+                alert(`Enrollment failed: ${errorData.error}`);
+                setIsRecording(false);
+                setProgress(0);
+                startFaceValidationLoop();
             }
         } catch (err) {
             console.error("Upload failed:", err);
             alert("Failed to send data to server.");
+            setIsRecording(false);
+            setProgress(0);
+            startFaceValidationLoop();
         }
     };
 
@@ -244,7 +258,7 @@ const SetFaceID = () => {
                 </div>
 
                 <div className="relative">
-                    <div className={`absolute inset-0 transition-opacity duration-1000 ${isRecording ? 'opacity-100' : 'opacity-20'} ${statusColor.replace('text-', 'bg-')}/10 blur-[100px] rounded-full`}></div>
+                    <div className={`absolute inset-0 transition-opacity duration-1000 ${isRecording || isSaved ? 'opacity-100' : 'opacity-20'} ${statusColor.replace('text-', 'bg-')}/10 blur-[100px] rounded-full`}></div>
 
                     <svg className="size-[420px] transform -rotate-90">
                         <circle cx="210" cy="210" r="200" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-slate-900" />
@@ -259,7 +273,7 @@ const SetFaceID = () => {
                     </svg>
 
                     <div className="absolute inset-0 flex items-center justify-center p-4">
-                        <div className={`size-[360px] rounded-full overflow-hidden border-2 bg-slate-950 relative transition-colors duration-500 ${isFaceValid ? 'border-green-500/50' : 'border-slate-800'}`}>
+                        <div className={`size-[360px] rounded-full overflow-hidden border-2 bg-slate-950 relative transition-colors duration-500 ${isFaceValid || isSaved ? 'border-green-500' : 'border-slate-800'}`}>
                             <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
 
                             {isRecording && (
@@ -270,11 +284,12 @@ const SetFaceID = () => {
                             )}
 
                             {isSaved && (
-                                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-30 animate-fade-in text-green-500">
-                                    <div className="size-20 rounded-full bg-green-600 flex items-center justify-center mb-4">
-                                        <span className="material-symbols-outlined text-white text-4xl">check</span>
+                                <div className="absolute inset-0 bg-black/70 backdrop-blur-md flex flex-col items-center justify-center z-50 animate-fade-in text-green-500">
+                                    <div className="size-24 rounded-full bg-green-600/20 border-2 border-green-500 flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(34,197,94,0.3)]">
+                                        <span className="material-symbols-outlined text-green-500 text-6xl">check_circle</span>
                                     </div>
-                                    <p className="font-bold uppercase tracking-[0.2em] text-xs text-white">Biometrics Enrolled</p>
+                                    <h2 className="text-2xl font-bold text-white mb-2">Registration Success</h2>
+                                    <p className="font-bold uppercase tracking-[0.3em] text-[10px] text-green-500">Biometrics Securely Enrolled</p>
                                 </div>
                             )}
 
@@ -313,20 +328,20 @@ const SetFaceID = () => {
                         onClick={startRecording}
                         disabled={isRecording || isSaved || !isFaceValid}
                         className={`w-full font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 ${isSaved
-                                ? 'bg-green-600 text-white'
-                                : isRecording
-                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                    : !isFaceValid
-                                        ? 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800'
-                                        : 'bg-white text-black hover:scale-[1.02] active:scale-[0.98]'
+                            ? 'bg-green-600 text-white cursor-default'
+                            : isRecording
+                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                                : !isFaceValid
+                                    ? 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800'
+                                    : 'bg-white text-black hover:scale-[1.02] active:scale-[0.98]'
                             } shadow-2xl relative overflow-hidden`}
                     >
                         {isRecording ? 'Vui lòng xoay mặt...' : isSaved ? 'System Success' : isFaceValid ? 'Begin Face ID Setup' : 'Detecting Human Face...'}
-                        {!isRecording && <span className="material-symbols-outlined">{isSaved ? 'done_all' : isFaceValid ? 'arrow_forward' : 'hourglass_bottom'}</span>}
+                        {!isRecording && <span className="material-symbols-outlined">{isSaved ? 'check_circle' : isFaceValid ? 'arrow_forward' : 'hourglass_bottom'}</span>}
                     </button>
 
                     <p className="text-[10px] text-slate-500 mt-6 uppercase tracking-wider font-bold">
-                        {isRecording ? 'Hệ thống đang kiểm tra tư thế của bạn...' : 'Tiến trình sẽ tạm dừng nếu bạn không di chuyển.'}
+                        {isRecording ? 'Hệ thống đang kiểm tra tư thế của bạn...' : isSaved ? 'Redirecting to dashboard...' : 'Tiến trình sẽ tạm dừng nếu bạn không di chuyển.'}
                     </p>
                 </div>
             </div>
