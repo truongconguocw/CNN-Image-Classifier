@@ -229,10 +229,7 @@ const ImageClassification = () => {
                                         <span className="material-symbols-outlined text-sm">refresh</span>
                                         Re-classify
                                     </button>
-                                    <button className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all">
-                                        <span className="material-symbols-outlined text-sm">download</span>
-                                        Export
-                                    </button>
+
                                 </div>
                             </div>
                         ) : error ? (

@@ -1,278 +1,249 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
-    const [metrics, setMetrics] = useState(null);
+    const [metrics, setMetrics] = useState({
+        accuracy: 0,
+        loss: 0,
+        model_id: '',
+        history: { accuracy: [], loss: [] }
+    });
+    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchMetrics = async () => {
+        const fetchData = async () => {
             try {
-                const response = await fetch('/api/metrics');
-                if (response.ok) {
-                    const data = await response.json();
-                    setMetrics(data);
+                const [metricsRes, usersRes] = await Promise.all([
+                    fetch('/api/metrics'),
+                    fetch('/api/users')
+                ]);
+
+                if (metricsRes.ok) {
+                    const metricsData = await metricsRes.ok ? await metricsRes.json() : null;
+                    if (metricsData) setMetrics(metricsData);
+                }
+
+                if (usersRes.ok) {
+                    const usersData = await usersRes.json();
+                    setUsers(usersData);
                 }
             } catch (error) {
-                console.error("Failed to fetch metrics:", error);
+                console.error("Failed to fetch dashboard data:", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchMetrics();
+        fetchData();
     }, []);
 
+    const totalImages = users.reduce((acc, user) => acc + (user.image_count || 0), 0);
+
+    const StatCard = ({ title, value, icon, trend, trendColor, label }) => (
+        <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                <span className="material-symbols-outlined text-6xl text-white">{icon}</span>
+            </div>
+            <div className="relative z-10">
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{title}</p>
+                <div className="flex items-baseline gap-2">
+                    <h3 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-slate-500">
+                        {loading ? '...' : value}
+                    </h3>
+                    {trend && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${trendColor}`}>
+                            {trend}
+                        </span>
+                    )}
+                </div>
+                <p className="text-slate-500 text-[10px] mt-2 font-medium">{label}</p>
+            </div>
+            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </div>
+    );
+
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center mb-8">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-white tracking-tight">System Dashboard</h1>
-                    <p className="text-slate-500 text-sm">Real-time performance analytics for {metrics?.model_id?.toUpperCase() || 'loading...'} model.</p>
+                    <h1 className="text-4xl font-black text-white tracking-tight mb-2">
+                        System Overview
+                    </h1>
+                    <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1.5 px-3 py-1 bg-green-500/10 text-green-500 rounded-full text-xs font-bold border border-green-500/20">
+                            <span className="size-2 rounded-full bg-green-500 animate-pulse"></span>
+                            System Online
+                        </span>
+                        <span className="text-slate-500 text-sm font-medium">
+                            Monitoring {metrics.model_id?.toUpperCase() || 'CNN Core'}
+                        </span>
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    <button className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-colors">
-                        <span className="material-symbols-outlined text-xl">share</span>
-                    </button>
-                    <button className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-colors">
-                        <span className="material-symbols-outlined text-xl">refresh</span>
-                    </button>
+                <div className="flex gap-3">
+                    <Link to="/realtime" className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                        <span className="material-symbols-outlined text-lg">videocam</span>
+                        Live Monitor
+                    </Link>
+                    <Link to="/set-faceid" className="flex items-center gap-2 px-6 py-3 bg-white/5 text-white border border-white/10 rounded-2xl font-bold text-sm hover:bg-white/10 transition-all">
+                        <span className="material-symbols-outlined text-lg">person_add</span>
+                        Enroll User
+                    </Link>
                 </div>
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                <StatCard
+                    title="Model Accuracy"
+                    value={`${metrics.accuracy}%`}
+                    icon="verified"
+                    trend="+2.1%"
+                    trendColor="bg-green-500/10 text-green-500"
+                    label={`Verified by ${metrics.model_id}`}
+                />
+                <StatCard
+                    title="Dataset Size"
+                    value={totalImages.toLocaleString()}
+                    icon="database"
+                    label="Processed high-res frames"
+                />
+                <StatCard
+                    title="System Loss"
+                    value={metrics.loss || '0.00'}
+                    icon="monitoring"
+                    trend="-0.04"
+                    trendColor="bg-green-500/10 text-green-500"
+                    label="Optimization convergence"
+                />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6">
-                    <div className="flex justify-between items-start mb-4">
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Total Accuracy</p>
-                        <span className="material-symbols-outlined text-primary">target</span>
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <h3 className="text-3xl font-bold text-white">{loading ? '...' : (metrics?.accuracy + '%')}</h3>
-                        <span className="text-green-500 text-xs font-bold mb-1">+2.4%</span>
-                    </div>
-                </div>
-                <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6">
-                    <div className="flex justify-between items-start mb-4">
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">System Loss</p>
-                        <span className="material-symbols-outlined text-purple-500">show_chart</span>
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <h3 className="text-2xl font-bold text-white">{loading ? '...' : metrics?.loss}</h3>
-                        <span className="text-green-500 text-xs font-bold mb-1">-0.05%</span>
-                    </div>
-                </div>
-                <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6">
-                    <div className="flex justify-between items-start mb-4">
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Active Folds</p>
-                        <span className="material-symbols-outlined text-yellow-500">layers</span>
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <h3 className="text-3xl font-bold text-white">5/5</h3>
-                        <span className="text-slate-500 text-xs font-bold mb-1">K-Fold</span>
-                    </div>
-                </div>
-                <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6">
-                    <div className="flex justify-between items-start mb-4">
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Dataset Size</p>
-                        <span className="material-symbols-outlined text-primary">database</span>
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <h3 className="text-3xl font-bold text-white">1,240</h3>
-                        <span className="text-slate-500 text-xs font-bold mb-1">Images</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="xl:col-span-1 space-y-6">
-                    <div className="bg-white dark:bg-background-dark rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                        <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                            <h3 className="font-bold text-base">Model Architecture</h3>
-                            <button className="text-primary text-xs font-bold hover:underline">Edit Layers</button>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] p-8">
+                        <div className="flex justify-between items-center mb-10">
+                            <div>
+                                <h3 className="text-xl font-bold text-white">Performance Analytics</h3>
+                                <p className="text-slate-500 text-sm mt-1">Cross-validation accuracy over time</p>
+                            </div>
+                            <div className="flex items-center gap-4 bg-black/20 p-1 rounded-xl border border-white/5">
+                                <button className="px-4 py-1.5 bg-primary text-white text-xs font-bold rounded-lg shadow-lg">24h</button>
+                                <button className="px-4 py-1.5 text-slate-500 text-xs font-bold hover:text-white transition-colors">7d</button>
+                                <button className="px-4 py-1.5 text-slate-500 text-xs font-bold hover:text-white transition-colors">30d</button>
+                            </div>
                         </div>
-                        <div className="p-5 space-y-4">
-                            <div className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-primary/30 transition-colors cursor-pointer">
-                                <div className="size-10 bg-primary/20 rounded flex items-center justify-center text-primary">
-                                    <span className="material-symbols-outlined">filter_frames</span>
+
+                        <div className="h-[300px] w-full relative">
+                            <div className="absolute inset-0 flex flex-col justify-between py-2">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="border-t border-white/5 w-full h-0"></div>
+                                ))}
+                            </div>
+
+                            <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+                                <defs>
+                                    <linearGradient id="chartGrad" x1="0" x2="0" y1="0" y2="1">
+                                        <stop offset="0%" stopColor="var(--primary-color)" stopOpacity="0.3" />
+                                        <stop offset="100%" stopColor="var(--primary-color)" stopOpacity="0" />
+                                    </linearGradient>
+                                </defs>
+                                <path
+                                    d="M 0,80 C 10,75 20,85 30,60 S 50,20 60,40 S 90,10 100,20 L 100,100 L 0,100 Z"
+                                    fill="url(#chartGrad)"
+                                />
+                                <path
+                                    d="M 0,80 C 10,75 20,85 30,60 S 50,20 60,40 S 90,10 100,20"
+                                    fill="none"
+                                    stroke="var(--primary-color)"
+                                    strokeWidth="3"
+                                    strokeLinecap="round"
+                                />
+                                <circle cx="100" cy="20" r="4" fill="var(--primary-color)" className="animate-pulse" />
+                            </svg>
+
+                            <div className="absolute right-0 top-0 -translate-y-full mb-4 bg-primary text-white px-3 py-1 rounded-lg text-xs font-bold shadow-xl">
+                                Live: 94.2%
+                            </div>
+                        </div>
+
+                        <div className="flex justify-between mt-6 pt-6 border-t border-white/5">
+                            <div className="flex gap-8">
+                                <div>
+                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Peak Accuracy</p>
+                                    <p className="text-white font-bold">96.8%</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold">Conv2D Layer</p>
-                                    <p className="text-xs text-slate-500">32 filters, 3x3 kernel, ReLU</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-primary/30 transition-colors cursor-pointer">
-                                <div className="size-10 bg-primary/20 rounded flex items-center justify-center text-primary">
-                                    <span className="material-symbols-outlined">grid_view</span>
+                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Avg response</p>
+                                    <p className="text-white font-bold">42ms</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold">MaxPooling2D</p>
-                                    <p className="text-xs text-slate-500">2x2 pool size, stride 2</p>
+                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Inference</p>
+                                    <p className="text-white font-bold">Real-time</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-primary/30 transition-colors cursor-pointer">
-                                <div className="size-10 bg-primary/20 rounded flex items-center justify-center text-primary">
-                                    <span className="material-symbols-outlined">density_small</span>
-                                </div>
-                                <div>
-                                    <p className="text-sm font-bold">Dense Layer</p>
-                                    <p className="text-xs text-slate-500">128 units, Softmax</p>
-                                </div>
-                            </div>
-                            <button className="w-full py-2 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-slate-400 text-xs font-bold hover:border-primary hover:text-primary transition-all">
-                                + Add Layer
+                            <button className="text-primary text-sm font-bold flex items-center gap-1 hover:gap-2 transition-all">
+                                View detailed report <span className="material-symbols-outlined text-sm">arrow_forward</span>
                             </button>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-background-dark rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                        <div className="p-5 border-b border-slate-200 dark:border-slate-800">
-                            <h3 className="font-bold text-base">Hyperparameters</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-white/5 rounded-3xl p-6">
+                            <h4 className="text-white font-bold mb-4 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-purple-400">psychology</span>
+                                Recognition Strategy
+                            </h4>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center p-3 bg-black/20 rounded-xl">
+                                    <span className="text-slate-300 text-sm italic">CNN Softmax</span>
+                                    <span className="px-2 py-0.5 bg-green-500/10 text-green-500 text-[10px] font-bold rounded uppercase">Active</span>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-black/20 rounded-xl">
+                                    <span className="text-slate-300 text-sm italic">Vector Euclidean</span>
+                                    <span className="px-2 py-0.5 bg-slate-500/10 text-slate-500 text-[10px] font-bold rounded uppercase">Standby</span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="p-5 space-y-5">
-                            <div className="space-y-2">
-                                <div className="flex justify-between">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Learning Rate</label>
-                                    <span className="text-xs font-bold text-primary">0.001</span>
-                                </div>
-                                <input
-                                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                                    type="range"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Batch Size</label>
-                                    <select className="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:ring-primary focus:border-primary outline-none p-2">
-                                        <option>16</option>
-                                        <option selected>32</option>
-                                        <option>64</option>
-                                        <option>128</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">K-Folds</label>
-                                    <input
-                                        className="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:ring-primary focus:border-primary outline-none p-2"
-                                        type="number"
-                                        defaultValue="5"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    defaultChecked
-                                    className="rounded text-primary focus:ring-primary bg-slate-800 border-slate-700 size-4"
-                                    type="checkbox"
-                                />
-                                <label className="text-xs font-medium text-slate-400">Apply Batch Normalization</label>
-                            </div>
+                        <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-white/5 rounded-3xl p-6">
+                            <h4 className="text-white font-bold mb-4 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-orange-400">hub</span>
+                                Model Evolution
+                            </h4>
+                            <p className="text-slate-400 text-sm mb-4">Latest training session completed 2 hours ago with VGG16 backbone.</p>
+                            <Link to="/evolution" className="text-white text-xs font-bold px-4 py-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all block text-center">
+                                Review Evolution
+                            </Link>
                         </div>
                     </div>
                 </div>
 
-                <div className="xl:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-background-dark rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-full">
-                        <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                            <div>
-                                <h3 className="font-bold text-base">Training Progress</h3>
-                                <p className="text-xs text-slate-500">Real-time Accuracy & Loss curves</p>
-                            </div>
-                            <div className="flex gap-4">
-                                <div className="flex items-center gap-2">
-                                    <span className="size-2 rounded-full bg-primary"></span>
-                                    <span className="text-xs font-medium">Accuracy</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="size-2 rounded-full bg-[#fa6238]"></span>
-                                    <span className="text-xs font-medium">Loss</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex-1 p-6 flex items-end gap-1 min-h-[400px]">
-                            <div className="w-full h-full relative border-l border-b border-slate-200 dark:border-slate-800">
-                                <div className="absolute inset-0 flex flex-col justify-between opacity-10 pointer-events-none">
-                                    <div className="border-t border-slate-400 w-full h-0"></div>
-                                    <div className="border-t border-slate-400 w-full h-0"></div>
-                                    <div className="border-t border-slate-400 w-full h-0"></div>
-                                    <div className="border-t border-slate-400 w-full h-0"></div>
-                                </div>
+                <div className="space-y-8">
+                    <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] p-6 relative overflow-hidden">
 
-                                <svg
-                                    className="absolute inset-0 w-full h-full preserve-3d"
-                                    preserveAspectRatio="none"
-                                    viewBox="0 0 100 100"
-                                >
-                                    <path
-                                        d="M0 20 Q 25 25, 50 45 T 100 80"
-                                        fill="none"
-                                        stroke="#fa6238"
-                                        strokeWidth="2"
-                                        vectorEffect="non-scaling-stroke"
-                                    ></path>
-                                    <path
-                                        d="M0 90 Q 25 80, 50 40 T 100 10"
-                                        fill="none"
-                                        stroke="#137fec"
-                                        strokeWidth="2"
-                                        vectorEffect="non-scaling-stroke"
-                                    ></path>
-                                    <path
-                                        d="M0 90 Q 25 80, 50 40 T 100 10 L 100 100 L 0 100 Z"
-                                        fill="url(#accGrad)"
-                                        opacity="0.1"
-                                    ></path>
-                                    <defs>
-                                        <linearGradient id="accGrad" x1="0" x2="0" y1="0" y2="1">
-                                            <stop offset="0%" stopColor="#137fec"></stop>
-                                            <stop offset="100%" stopColor="transparent"></stop>
-                                        </linearGradient>
-                                    </defs>
-                                </svg>
+                        <div className="absolute top-0 right-0 size-32 bg-primary/20 blur-[60px] -mr-16 -mt-16"></div>
+                        <h3 className="text-lg font-bold text-white mb-2 relative z-10 text-blue-300">System Health</h3>
+                        <div className="space-y-4 relative z-10">
 
-                                <div className="absolute left-[70%] top-[30%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                                    <div className="size-3 rounded-full border-2 border-white bg-primary shadow-lg z-10"></div>
-                                    <div className="mt-2 bg-slate-900/90 text-white text-[10px] px-2 py-1 rounded shadow-xl whitespace-nowrap border border-slate-700">
-                                        Epoch 35: 88.4%
-                                    </div>
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+                                    <span className="text-slate-400">RAM Usage</span>
+                                    <span className="text-slate-300">4.2GB</span>
+                                </div>
+                                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                    <div className="h-full bg-slate-500 rounded-full transition-all duration-1000" style={{ width: '52%' }}></div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="p-5 bg-slate-50 dark:bg-slate-800/30 flex justify-between items-center">
-                            <div className="flex items-center gap-4">
-                                <button className="flex items-center gap-2 px-4 py-2 bg-slate-200 dark:bg-slate-700 rounded-lg text-sm font-bold hover:bg-slate-300 transition-all">
-                                    <span className="material-symbols-outlined text-sm">pause</span> Pause
-                                </button>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-bold hover:bg-red-500/20 transition-all">
-                                    <span className="material-symbols-outlined text-sm">stop</span> Stop
-                                </button>
+                            <div className="flex items-center gap-2 mt-6 p-3 bg-primary/10 border border-primary/20 rounded-2xl">
+                                <span className="material-symbols-outlined text-primary">info</span>
+                                <p className="text-[10px] text-slate-300 leading-tight">All systems operational. Latency levels optimal for real-time inference.</p>
                             </div>
-                            <div className="text-right">
-                                <p className="text-xs text-slate-500">Estimated time remaining</p>
-                                <p className="text-sm font-bold">12m 45s</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-[#0c1219] rounded-xl border border-slate-800 overflow-hidden font-mono">
-                        <div className="px-4 py-2 bg-slate-800/50 flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">System Logs</span>
-                            <div className="flex gap-1.5">
-                                <span className="size-2 rounded-full bg-slate-700"></span>
-                                <span className="size-2 rounded-full bg-slate-700"></span>
-                                <span className="size-2 rounded-full bg-slate-700"></span>
-                            </div>
-                        </div>
-                        <div className="p-4 h-32 overflow-y-auto text-[11px] space-y-1 text-slate-400">
-                            <p><span className="text-green-500">[INFO]</span> Epoch 14/50 started...</p>
-                            <p><span className="text-primary">[DATA]</span> Batch 1024/2048 processed in 234ms</p>
-                            <p><span className="text-slate-500">[SYSTEM]</span> Memory usage: 4.2GB / 8.0GB</p>
-                            <p><span className="text-green-500">[INFO]</span> Validation accuracy increased (0.842 -&gt; 0.851). Saving checkpoint...</p>
-                            <p className="animate-pulse underline decoration-primary underline-offset-4 tracking-tighter">_</p>
                         </div>
                     </div>
                 </div>
             </div>
-
         </div>
     );
 };
 
 export default Dashboard;
+

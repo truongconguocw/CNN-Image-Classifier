@@ -32,9 +32,19 @@ MODELS_CONFIG = {
 }
 
 IMG_SIZE = (224, 224)
-CLASS_NAMES = ['Benzema', 'Messi', 'Ronaldo']
 active_model_id = 'vgg16'
 loaded_models = {}
+
+def get_class_names():
+    try:
+        conn = sqlite3.connect('faceid.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT full_name FROM users ORDER BY user_id')
+        names = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return names if names else ['Benzema', 'Messi', 'Ronaldo']
+    except:
+        return ['Benzema', 'Messi', 'Ronaldo']
 
 def init_db():
     conn = sqlite3.connect('faceid.db')
@@ -185,6 +195,7 @@ def predict():
     
     file = request.files['file']
     img_bytes = file.read()
+    class_names = get_class_names()
     
     try:
         nparr = np.frombuffer(img_bytes, np.uint8)
@@ -199,11 +210,13 @@ def predict():
             class_idx = np.argmax(preds[0])
             confidence = float(preds[0][class_idx]) * 100
             if confidence > 70.0:
+                label = class_names[class_idx] if class_idx < len(class_names) else f"Unknown_{class_idx}"
                 raw_results.append({
                     'bbox': [0, 0, img_cv.shape[1], img_cv.shape[0]],
-                    'prediction': CLASS_NAMES[class_idx],
+                    'prediction': label,
                     'confidence': round(confidence, 2)
                 })
+                save_processed_face(img_cv, label)
         else:
             for (x, y, w, h) in faces:
                 face_img = img_cv[y:y+h, x:x+w]
@@ -213,16 +226,29 @@ def predict():
                 confidence = float(preds[0][class_idx]) * 100
 
                 if confidence > 70.0:
+                    label = class_names[class_idx] if class_idx < len(class_names) else f"Unknown_{class_idx}"
                     raw_results.append({
                         'bbox': [int(x), int(y), int(w), int(h)],
-                        'prediction': CLASS_NAMES[class_idx],
+                        'prediction': label,
                         'confidence': round(confidence, 2)
                     })
+                    save_processed_face(face_img, label)
+        
         clean_results = apply_nms(raw_results, iou_threshold=0.3)
         return jsonify({'detections': clean_results, 'model_used': active_model_id})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+def save_processed_face(face_img, label):
+    try:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        path = os.path.join('data', 'processed', label)
+        os.makedirs(path, exist_ok=True)
+        filename = f"{ts}.jpg"
+        cv2.imwrite(os.path.join(path, filename), face_img)
+    except:
+        pass
 
 @app.route('/api/validate-face', methods=['POST'])
 def validate_face():
@@ -277,8 +303,8 @@ def predict_vector():
     results = []
     for (x, y, w, h) in faces:
         face_img = img_cv[y:y+h, x:x+w]
-        face_img = cv2.resize(face_img, (224, 224))
-        current_emb = get_embedding(face_img, active_model_id)
+        face_resized = cv2.resize(face_img, (224, 224))
+        current_emb = get_embedding(face_resized, active_model_id)
         
         best_match = "Unknown"
         min_dist = 100.0
@@ -293,12 +319,15 @@ def predict_vector():
                 if dist < threshold:
                     best_match = full_name
 
+        confidence = round(max(0, (1 - min_dist/threshold) * 100), 2) if best_match != "Unknown" else 0
         results.append({
             'bbox': [int(x), int(y), int(w), int(h)],
             'prediction': best_match,
-            'confidence': round(max(0, (1 - min_dist/threshold) * 100), 2) if best_match != "Unknown" else 0,
+            'confidence': confidence,
             'distance': round(float(min_dist), 4)
         })
+        if best_match != "Unknown" and confidence > 70.0:
+            save_processed_face(face_img, best_match)
 
     return jsonify({'detections': results, 'method': 'vector_embedding'})
 
@@ -321,7 +350,7 @@ def get_metrics():
         'accuracy': 0, 'loss': 0, 'folds': [], 'history': {'accuracy': [], 'loss': []}
     })
 
-def extract_frames(video_path, output_dir, max_frames=50):
+def extract_frames(video_path, output_dir, max_frames=100):
     cap = cv2.VideoCapture(video_path)
     count = 0
     saved_count = 0
@@ -338,14 +367,29 @@ def extract_frames(video_path, output_dir, max_frames=50):
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             faces = face_cascade.detectMultiScale(gray, 1.1, 4)
             
-            for (x, y, w, h) in faces:
+            detected_face = None
+            if len(faces) > 0:
+                detected_face = faces[0]
+            else:
+                profiles = profile_cascade.detectMultiScale(gray, 1.1, 4)
+                if len(profiles) > 0:
+                    detected_face = profiles[0]
+                else:
+                    flipped_gray = cv2.flip(gray, 1)
+                    profiles_flipped = profile_cascade.detectMultiScale(flipped_gray, 1.1, 4)
+                    if len(profiles_flipped) > 0:
+                        detected_face = profiles_flipped[0]
+                        fx, fy, fw, fh = detected_face
+                        detected_face = [frame.shape[1] - fx - fw, fy, fw, fh]
+
+            if detected_face is not None:
+                x, y, w, h = detected_face
                 face_img = frame[y:y+h, x:x+w]
-                face_img = cv2.resize(face_img, (224, 224))
-                
-                img_name = os.path.join(output_dir, f"face_{saved_count:03d}.jpg")
-                cv2.imwrite(img_name, face_img)
-                saved_count += 1
-                break
+                if face_img.size > 0:
+                    face_img = cv2.resize(face_img, (224, 224))
+                    img_name = os.path.join(output_dir, f"face_{saved_count:03d}.jpg")
+                    cv2.imwrite(img_name, face_img)
+                    saved_count += 1
 
         count += 1
     

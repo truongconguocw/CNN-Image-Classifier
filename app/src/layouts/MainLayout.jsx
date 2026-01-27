@@ -167,28 +167,6 @@ const MainLayout = () => {
                                 ))}
                             </select>
                         </div>
-                        <div className="hidden md:flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1.5 w-64">
-                            <span className="material-symbols-outlined text-slate-400 text-sm">search</span>
-                            <input
-                                className="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-slate-500 outline-none ml-2"
-                                placeholder="Search experiments..."
-                                type="text"
-                            />
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5 mr-4 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full">
-                            <span className="size-2 rounded-full bg-primary animate-pulse"></span>
-                            <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                                GPU-0: 78% Load
-                            </span>
-                        </div>
-                        <button className="flex items-center justify-center size-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                            <span className="material-symbols-outlined">notifications</span>
-                        </button>
-                        <button className="bg-primary hover:bg-primary/90 text-white px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-primary/20">
-                            Export Model
-                        </button>
                     </div>
                 </header>
 
