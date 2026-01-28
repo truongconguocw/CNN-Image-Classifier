@@ -1,5 +1,7 @@
 import sqlite3
-from .config import DATABASE_PATH
+import os
+from .config import DATABASE_PATH, PROCESSED_DIR
+from datetime import datetime
 
 def init_db():
     conn = sqlite3.connect(DATABASE_PATH)
@@ -14,6 +16,30 @@ def init_db():
             created_at DATETIME
         )
     ''')
+    conn.commit()
+    conn.close()
+    sync_db_with_folders()
+
+def sync_db_with_folders():
+    if not os.path.exists(PROCESSED_DIR):
+        return
+
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    for foldername in os.listdir(PROCESSED_DIR):
+        folder_path = os.path.join(PROCESSED_DIR, foldername)
+        if os.path.isdir(folder_path):
+            cleaned_name = foldername.replace('pins_', '').capitalize()
+            cursor.execute('SELECT id FROM users WHERE full_name = ?', (cleaned_name,))
+            if not cursor.fetchone():
+                user_id = foldername.lower()
+                cursor.execute('''
+                    INSERT INTO users (user_id, full_name, created_at)
+                    VALUES (?, ?, ?)
+                ''', (user_id, cleaned_name, datetime.now()))
+    
     conn.commit()
     conn.close()
 
