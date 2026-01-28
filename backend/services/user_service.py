@@ -13,7 +13,7 @@ def enroll_new_user(user_id, full_name, video_file, model_id):
     video_path = os.path.join(RAW_VIDEOS_DIR, f"{user_id}.webm")
     video_file.save(video_path)
 
-    user_processed_dir = os.path.join(PROCESSED_DIR, user_id)
+    user_processed_dir = os.path.join(PROCESSED_DIR, full_name)
     os.makedirs(user_processed_dir, exist_ok=True)
 
     add_user(user_id, full_name, video_path, datetime.now())
@@ -39,15 +39,27 @@ def enroll_new_user(user_id, full_name, video_file, model_id):
         return False, 0, str(e)
 
 def delete_user_files(user_id):
+    from ..database import get_db_connection
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT full_name FROM users WHERE user_id = ?', (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    full_name = user['full_name'] if user else None
+    
     delete_user_db(user_id)
     raw_video = os.path.join(RAW_VIDEOS_DIR, f"{user_id}.webm")
     dataset_dir = os.path.join(DATASETS_DIR, user_id)
-    processed_dir = os.path.join(PROCESSED_DIR, user_id)
     
     if os.path.exists(raw_video):
         os.remove(raw_video)
     if os.path.exists(dataset_dir):
         shutil.rmtree(dataset_dir)
-    if os.path.exists(processed_dir):
-        shutil.rmtree(processed_dir)
+        
+    if full_name:
+        processed_dir = os.path.join(PROCESSED_DIR, full_name)
+        if os.path.exists(processed_dir):
+            shutil.rmtree(processed_dir)
+            
     return True

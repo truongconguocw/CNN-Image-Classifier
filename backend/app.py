@@ -85,7 +85,8 @@ def get_users_list():
     for user in users:
         count = 0
         for d in ['datasets', 'processed']:
-            p = os.path.join(DATA_DIR, d, user['user_id'])
+            folder_name = user['user_id'] if d == 'datasets' else user['full_name']
+            p = os.path.join(DATA_DIR, d, folder_name)
             if os.path.exists(p):
                 count += len([f for f in os.listdir(p) if f.endswith('.jpg')])
         user['image_count'] = count

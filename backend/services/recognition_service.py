@@ -13,7 +13,14 @@ def predict_cnn(img_cv, model_id):
     faces = face_cascade.detectMultiScale(gray, 1.1, 5)
     class_names = get_class_names()
     
-    output_size = model.layers[-1].output_shape[-1]
+    try:
+        output_size = model.output_shape[-1]
+    except:
+        try:
+            output_size = model.layers[-1].output_shape[-1]
+        except:
+            output_size = len(class_names)
+    
     is_mismatch = output_size != len(class_names)
     
     results = []
