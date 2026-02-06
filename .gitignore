@@ -9,7 +9,6 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Models
-models/*.h5
 models/*.keras
 !models/metrics.json
 
