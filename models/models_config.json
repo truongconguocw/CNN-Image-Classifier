@@ -1,0 +1,22 @@
+{
+  "vgg16": {
+    "path": "models/vgg16_best_fold_3.h5",
+    "name": "VGG16 (Transfer Learning)",
+    "preprocess": "vgg16"
+  },
+  "custom_cnn": {
+    "path": "models/custom_cnn_fold_5.h5",
+    "name": "Custom CNN (Lightweight)",
+    "preprocess": "rescale"
+  },
+  "vgg16_best_fold_1": {
+    "path": "models\\vgg16_best_fold_1.h5",
+    "name": "Test",
+    "preprocess": "rescale"
+  },
+  "custom_cnn_fold_3": {
+    "path": "models\\custom_cnn_fold_3.h5",
+    "name": "Custom",
+    "preprocess": "rescale"
+  }
+}

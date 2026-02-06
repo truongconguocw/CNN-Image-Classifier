@@ -36,7 +36,7 @@ def sync_db_with_folders():
             if not cursor.fetchone():
                 user_id = foldername.lower()
                 cursor.execute('''
-                    INSERT INTO users (user_id, full_name, created_at)
+                    INSERT OR IGNORE INTO users (user_id, full_name, created_at)
                     VALUES (?, ?, ?)
                 ''', (user_id, cleaned_name, datetime.now()))
     

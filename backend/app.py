@@ -6,8 +6,7 @@ from .config import MODELS_CONFIG, MODELS_DIR, DATA_DIR, METRICS_DEFAULT
 from .database import init_db, get_all_users
 from .services.recognition_service import predict_cnn, predict_vector
 from .services.user_service import enroll_new_user, delete_user_files
-from .services.model_service import load_model_instance
-from .utils.image_utils import face_cascade, detect_head_pose
+from .services.model_service import load_model_instance, loaded_models
 import cv2
 import numpy as np
 
@@ -22,20 +21,74 @@ def serve_data(filename):
 
 @app.route('/api/models', methods=['GET'])
 def get_models():
+    # Scan models directory for all .h5 files
+    files = [f for f in os.listdir(MODELS_DIR) if f.endswith('.h5')]
+    
+    available_models = []
+    # Mix known configs and existing files
+    for filename in files:
+        model_id = filename.replace('.h5', '').lower()
+        # User requested to show .h5 files directly
+        name = filename
+        preprocess = 'rescale'
+        
+        if model_id in MODELS_CONFIG:
+            preprocess = MODELS_CONFIG[model_id]['preprocess']
+        elif 'vgg16' in filename.lower():
+            preprocess = 'vgg16'
+            
+        available_models.append({
+            'id': filename,
+            'name': name,
+            'filename': filename,
+            'preprocess': preprocess,
+            'exists': True
+        })
+        
+    # Try to find filename of active model for UI matching
+    active_display = active_model_id
+    if active_model_id in MODELS_CONFIG:
+        active_display = os.path.basename(MODELS_CONFIG[active_model_id]['path'])
+
     return jsonify({
-        'active_model': active_model_id,
-        'available_models': [{'id': k, 'name': v['name'], 'exists': os.path.exists(v['path'])} for k, v in MODELS_CONFIG.items()]
+        'active_model': active_display,
+        'available_models': available_models
     })
+
+@app.route('/api/list-model-files', methods=['GET'])
+def list_model_files():
+    files = [f for f in os.listdir(MODELS_DIR) if f.endswith('.h5')]
+    return jsonify({'files': files})
 
 @app.route('/api/select_model', methods=['POST'])
 def select_model():
     global active_model_id
     data = request.json
-    model_id = data.get('model_id')
+    model_id = data.get('model_id') # This can be an ID or a filename
+    
+    # CASE 1: Selecting by Filename (New requirement)
+    if model_id.endswith('.h5'):
+        filename = model_id
+        path = os.path.join(MODELS_DIR, filename)
+        if not os.path.exists(path):
+            return jsonify({'error': 'Model file not found'}), 404
+            
+        # Register it on the fly if not in config
+        clean_id = filename.replace('.h5', '').lower()
+        if clean_id not in MODELS_CONFIG:
+            MODELS_CONFIG[clean_id] = {
+                'path': path,
+                'name': filename,
+                'preprocess': 'vgg16' if 'vgg16' in filename.lower() else 'rescale'
+            }
+        model_id = clean_id
+
+    # CASE 2: Standard selection
     if model_id not in MODELS_CONFIG:
         return jsonify({'error': 'Invalid model ID'}), 400
     if not os.path.exists(MODELS_CONFIG[model_id]['path']):
         return jsonify({'error': 'Model file not found'}), 404
+        
     if load_model_instance(model_id):
         active_model_id = model_id
         return jsonify({'success': True, 'active_model': active_model_id})
@@ -130,6 +183,19 @@ def detect_pose_route():
     nparr = np.frombuffer(request.files['file'].read(), np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     return jsonify({'pose': detect_head_pose(img)})
+
+@app.after_request
+def log_response(response):
+    if response.content_type == 'application/json':
+        try:
+            data = json.loads(response.get_data().decode('utf-8'))
+            print(f"\n[DEBUG] {request.method} {request.path} -> {response.status_code}")
+            print(f"Response Body: {json.dumps(data, indent=2, ensure_ascii=False)}")
+        except Exception as e:
+            print(f"\n[DEBUG] Could not log response: {e}")
+    else:
+        print(f"\n[DEBUG] {request.method} {request.path} -> {response.status_code} ({response.content_type})")
+    return response
 
 init_db()
 

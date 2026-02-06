@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 from .model_service import load_model_instance, preprocess_face, get_face_embedding
 from ..database import get_class_names, get_db_connection
-from ..utils.image_utils import apply_nms, face_cascade
+from ..utils.image_utils import apply_nms, face_cascade, profile_cascade
 
 def predict_cnn(img_cv, model_id):
     model = load_model_instance(model_id)
@@ -10,45 +10,68 @@ def predict_cnn(img_cv, model_id):
         return None, "Model not loaded"
     
     gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.1, 5)
+    
+    # DETECT FACES (Multi-angle)
+    # Frontal faces
+    f_faces = face_cascade.detectMultiScale(gray, 1.05, 4)
+    # Profile faces
+    p_faces = profile_cascade.detectMultiScale(gray, 1.05, 4)
+    # Flipped profile faces
+    gray_flipped = cv2.flip(gray, 1)
+    pf_faces = profile_cascade.detectMultiScale(gray_flipped, 1.05, 4)
+    
+    all_faces = []
+    for f in f_faces: all_faces.append(list(f))
+    for f in p_faces: all_faces.append(list(f))
+    for (x, y, w, h) in pf_faces:
+        all_faces.append([img_cv.shape[1] - x - w, y, w, h])
+    
     class_names = get_class_names()
     
     try:
         output_size = model.output_shape[-1]
     except:
-        try:
-            output_size = model.layers[-1].output_shape[-1]
-        except:
-            output_size = len(class_names)
+        output_size = len(class_names)
     
     is_mismatch = output_size != len(class_names)
-    
     results = []
     
-    def process_img(image, box=None):
-        processed = preprocess_face(image, model_id)
+    def process_img(image, box):
+        # Increased tight cropping to 15% for better focus
+        h, w = image.shape[:2]
+        off_w, off_h = int(w * 0.15), int(h * 0.15)
+        tight_face = image[off_h:h-off_h, off_w:w-off_w]
+        
+        if tight_face.size == 0: tight_face = image # Safety
+        
+        processed = preprocess_face(tight_face, model_id)
         preds = model.predict(processed)
         class_idx = np.argmax(preds[0])
         confidence = float(preds[0][class_idx]) * 100
         
-        if confidence > 70.0:
-            if is_mismatch:
-                label = f"Untrained_{class_idx}"
-            else:
-                label = class_names[class_idx]
+        if is_mismatch:
+            label = f"Untrained_{class_idx}"
+        else:
+            label = class_names[class_idx] if confidence > 30.0 else f"Unknown ({class_names[class_idx]})"
             
-            results.append({
-                'bbox': box if box else [0, 0, image.shape[1], image.shape[0]],
-                'prediction': label,
-                'confidence': round(confidence, 2)
-            })
+        results.append({
+            'bbox': box,
+            'prediction': label,
+            'confidence': round(confidence, 2)
+        })
 
-    if len(faces) == 0:
-        process_img(img_cv)
+    if len(all_faces) == 0:
+        # If no face detected, process center area (last resort)
+        h, w = img_cv.shape[:2]
+        process_img(img_cv, [0, 0, w, h])
     else:
-        for (x, y, w, h) in faces:
+        for box in all_faces:
+            x, y, w, h = box
+            # Ensure within bounds
+            y = max(0, y); x = max(0, x)
             face_img = img_cv[y:y+h, x:x+w]
-            process_img(face_img, [int(x), int(y), int(w), int(h)])
+            if face_img.size > 0:
+                process_img(face_img, [int(x), int(y), int(w), int(h)])
     
     return apply_nms(results), None
 
@@ -66,7 +89,13 @@ def predict_vector(img_cv, model_id):
 
     results = []
     for (x, y, w, h) in faces:
-        face_img = img_cv[y:y+h, x:x+w]
+        # Also use 15% tight crop for vector recognition
+        off_w, off_h = int(w * 0.15), int(h * 0.15)
+        face_img = img_cv[y+off_h:y+h-off_h, x+off_w:x+w-off_w]
+        
+        if face_img.size == 0: 
+            face_img = img_cv[y:y+h, x:x+w] # Fallback
+            
         face_resized = cv2.resize(face_img, (224, 224))
         current_emb = get_face_embedding(face_resized, model_id)
         

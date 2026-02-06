@@ -6,3 +6,4 @@ scikit-learn
 pillow
 opencv-python
 matplotlib
+seaborn

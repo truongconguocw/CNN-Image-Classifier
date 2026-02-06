@@ -1,0 +1,76 @@
+TÀI LIỆU KIẾN THỨC DỰ ÁN: HỆ THỐNG NHẬN DIỆN KHUÔN MẶT (NHÓM 1 AI)
+-----------------------------------------------------------------------
+Tài liệu này được biên soạn để hỗ trợ nhóm nắm vững kiến thức nền tảng, giải pháp kỹ thuật và trả lời các câu hỏi phản biện của Hội đồng chấm thi.
+
+I. KIẾN TRÚC TỔNG QUAN (SYSTEM ARCHITECTURE)
+1. Mô hình: Client-Server (Decoupled Architecture).
+   - Frontend: Sử dụng ReactJS + Vite + Tailwind CSS. Đảm bảo giao diện hiện đại, phản hồi nhanh (SPA - Single Page Application).
+   - Backend: Flask (Python). Đóng vai trò là "AI Engine" xử lý mọi tác vụ tính toán nặng như detect, preprocess và predict.
+2. Quy trình dữ liệu (Data Flow):
+   Image Input -> Flask API -> Face Detection (OpenCV) -> Tight Cropping & Preprocessing -> AI Model (TensorFlow) -> NMS Post-processing -> Client Dashboard.
+
+II. CÁC THUẬT TOÁN CỐT LÕI (CORE ALGORITHMS)
+1. Phát hiện khuôn mặt (Face Detection):
+   - Sử dụng: Haar Cascade Classifiers. Đặc điểm: Tốc độ xử lý cực nhanh, phù hợp cho realtime.
+   - Giải pháp nâng cao: Multi-Cascade Detection (Frontal + Profile + Flipped Profile). Giúp phát hiện khuôn mặt ở nhiều góc độ (nghiêng trái/phải), khắc phục điểm yếu của bộ lọc trực diện đơn thuần.
+2. Nhận diện khuôn mặt (Face Recognition): Có 2 phương pháp song song:
+   a. CNN Classification: Model dự đoán trực tiếp lớp (Class/ID) của người dùng. Ưu điểm: Độ chính xác rất cao cho tập người dùng cố định.
+   b. Vector Matching (Embedding): Sử dụng lớp trung gian (Intermediate Layer) của mạng CNN để trích xuất Vector đặc trưng (128-512 chiều). Sau đó so sánh khoảng cách Euclide (Euclidean Distance). Ưu điểm: Nhận diện được người mới nhanh chóng mà không cần train lại model.
+3. Kỹ thuật NMS (Non-Maximum Suppression):
+   - Loại bỏ các khung nhận diện bị chồng lấn lên nhau cho cùng một đối tượng, chỉ giữ lại khung có độ tin cậy (Confidence) cao nhất.
+
+III. QUY TRÌNH TIỀN XỬ LÝ & TỐI ƯU HÓA (OUR SECRET SAUCE)
+1. Video-to-Faces (Data Preprocessing):
+   - Blur Detection: Sử dụng biến thể Laplacian để tính độ sắc nét. Loại bỏ ảnh mờ trước khi train.
+   - Similarity Filter: So sánh histogram/đặc trưng giữa các frame liên tiếp để tránh việc bộ dữ liệu bị trùng lặp quá nhiều ảnh giống hệt nhau, gây hiện tượng Overfitting.
+2. Tight Cropping (Cắt sát 15%):
+   - Đây là kỹ thuật quan trọng giúp tăng độ chính xác. Bằng cách thu hẹp vùng chọn vào trung tâm khuôn mặt, chúng ta loại bỏ nhiễu từ tóc, nền và quần áo, giúp model tập trung 100% vào các đặc điểm nhân dạng (mắt, mũi, miệng).
+3. K-Fold Cross Validation:
+   - Thay vì chia Train/Test 1 lần duy nhất, chúng ta chia tập dữ liệu thành K phần (thường K=5). Model được huấn luyện và đánh giá K lần để đảm bảo kết quả chính xác khách quan, không bị phụ thuộc vào việc chia dữ liệu ngẫu nhiên.
+
+IV. CÂU HỎI PHẢN BIỆN DỰ KIẾN (EXAMINATION BOARD Q&A)
+Câu 1: Tại sao chọn CNN thay vì các thuật toán truyền thống như LBPH hay PCA?
+Trả lời: CNN có khả năng tự trích xuất đặc trưng (Feature Extraction) cấp cao, có tính bất biến đối với các thay đổi nhỏ về ánh sáng và góc nhìn, giúp độ chính xác vượt trội hơn hẳn các phương pháp cổ điển dựa trên pixel.
+
+Câu 2: Tại sao dự án hỗ trợ cả VGG16 và Custom CNN?
+Trả lời: VGG16 là model pre-trained mạnh mẽ giúp nhận diện tốt với tập dữ liệu nhỏ nhờ Transfer Learning. Custom CNN của nhóm được thiết kế gọn nhẹ, tốc độ inference nhanh, phù hợp cho các thiết bị có tài nguyên hạn chế.
+
+Câu 3: Làm thế nào để hệ thống xử lý trường hợp "Người lạ" (Unknown)?
+Trả lời: Hệ thống áp dụng ngưỡng tin cậy (Confidence Threshold). Nếu kết quả dự đoán cao nhất vẫn thấp hơn ngưỡng quy định (ví dụ < 30%), hệ thống sẽ đánh dấu là Unknown.
+
+Câu 4: Tác dụng thực sự của "Vector Matching" trong dự án là gì?
+Trình bày: Đây là phương pháp nhận diện One-shot Learning. Trong thực tế, khi một công ty có nhân viên mới, việc train lại toàn bộ mạng CNN là rất tốn kém thời gian. Vector Matching cho phép chỉ cần lưu 1 tấm ảnh mẫu vào Database, hệ thống sẽ tự so khớp được ngay.
+
+V. LƯU Ý KHI TRÌNH BÀY
+- Nhấn mạnh vào tính thực tiễn: Hệ thống có thể chuyển đổi model linh hoạt ngay trên giao diện Header.
+- Show case: Sử dụng ảnh có nhiều người (Messi, Ronaldo) để chứng minh khả năng phát hiện đa hướng và đa đối tượng.
+- Kết quả: Đưa ra các chỉ số Precision/Recall/F1-score từ quá trình K-Fold để chứng minh tính khoa học.
+
+VI. GIẢI THÍCH MÃ NGUỒN & LOGIC CODE (FOR CODE VIVA)
+-----------------------------------------------------------------------
+Đây là phần quan trọng nhất khi Hội đồng yêu cầu bạn "mở code lên giải thích":
+
+1. Tại file `backend/services/recognition_service.py` (Hàm `predict_cnn`):
+   - Logic Đa hướng: Nhóm sử dụng vòng lặp duyệt qua f_faces (trực diện), p_faces (nghiêng) và pf_faces (nghiêng đảo ngược). 
+   - Điểm lưu ý: Với pf_faces, nhóm phải dùng công thức `img_cv.shape[1] - x - w` để ánh xạ tọa độ từ ảnh đã lật về lại ảnh gốc.
+   - Tight Cropping: Đoạn code `image[off_h:h-off_h, off_w:w-off_w]` chính là nơi thực hiện cắt sát. Chúng ta lấy offset 15% diện tích để chỉ giữ lại vùng đặc trưng mặt.
+
+2. Tại file `backend/utils/image_utils.py` (Hàm `apply_nms`):
+   - Logic NMS: Khi dùng nhiều bộ dò mặt, một khuôn mặt có thể bị bao quanh bởi nhiều khung (boxes). 
+   - Giải thích code: Thuật toán tính chỉ số IoU (Intersection over Union). Nếu 2 khung đè lên nhau > 30% (iou_threshold=0.3), khung có tự tin thấp hơn sẽ bị xóa bỏ.
+
+3. Tại file `backend/app.py` (API `get_models` và `select_model`):
+   - Logic quét Model động: Dùng `os.listdir(MODELS_DIR)` để lấy danh sách file thực tế. Điều này giúp hệ thống linh hoạt, không cần cấu hình cứng (hard-code).
+   - Logic tiền xử lý tự động: Trong code có đoạn kiểm tra `'vgg16' in filename.lower()`. Nếu đúng, hệ thống tự động gán kiểu tiền xử lý của VGG16 (trừ trung bình kênh màu), nếu không sẽ dùng Rescale (0-1).
+
+4. Tại file `app/src/layouts/MainLayout.jsx` (Frontend):
+   - Logic state: Sử dụng `useState` để lưu danh sách models và model đang hoạt động (activeModel).
+   - Truyền dữ liệu: Khi người dùng chọn model, hàm `handleModelChange` gửi yêu cầu POST đến `/api/select_model` và sau đó dùng `window.location.reload()` để đảm bảo toàn bộ các trang con (Dashboard, Recognition) đều nạp dữ liệu theo model mới.
+
+5. Kết nối API:
+   - Dữ liệu trao đổi giữa FE và BE là định dạng JSON.
+   - Request từ FE thường chứa `FormData` (ảnh) hoặc `application/json` (cấu hình).
+   - Response từ BE chứa mảng `detections` với các thông tin: `bbox` (tọa độ), `prediction` (tên), `confidence` (độ tin cậy).
+
+-----------------------------------------------------------------------
+CHÚC NHÓM 1 AI CÓ MỘT BUỔI BẢO VỆ THÀNH CÔNG RỰC RỠ!

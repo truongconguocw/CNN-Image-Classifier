@@ -120,72 +120,6 @@ const Dashboard = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] p-8">
-                        <div className="flex justify-between items-center mb-10">
-                            <div>
-                                <h3 className="text-xl font-bold text-white">Performance Analytics</h3>
-                                <p className="text-slate-500 text-sm mt-1">Cross-validation accuracy over time</p>
-                            </div>
-                            <div className="flex items-center gap-4 bg-black/20 p-1 rounded-xl border border-white/5">
-                                <button className="px-4 py-1.5 bg-primary text-white text-xs font-bold rounded-lg shadow-lg">24h</button>
-                                <button className="px-4 py-1.5 text-slate-500 text-xs font-bold hover:text-white transition-colors">7d</button>
-                                <button className="px-4 py-1.5 text-slate-500 text-xs font-bold hover:text-white transition-colors">30d</button>
-                            </div>
-                        </div>
-
-                        <div className="h-[300px] w-full relative">
-                            <div className="absolute inset-0 flex flex-col justify-between py-2">
-                                {[1, 2, 3, 4].map(i => (
-                                    <div key={i} className="border-t border-white/5 w-full h-0"></div>
-                                ))}
-                            </div>
-
-                            <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-                                <defs>
-                                    <linearGradient id="chartGrad" x1="0" x2="0" y1="0" y2="1">
-                                        <stop offset="0%" stopColor="var(--primary-color)" stopOpacity="0.3" />
-                                        <stop offset="100%" stopColor="var(--primary-color)" stopOpacity="0" />
-                                    </linearGradient>
-                                </defs>
-                                <path
-                                    d="M 0,80 C 10,75 20,85 30,60 S 50,20 60,40 S 90,10 100,20 L 100,100 L 0,100 Z"
-                                    fill="url(#chartGrad)"
-                                />
-                                <path
-                                    d="M 0,80 C 10,75 20,85 30,60 S 50,20 60,40 S 90,10 100,20"
-                                    fill="none"
-                                    stroke="var(--primary-color)"
-                                    strokeWidth="3"
-                                    strokeLinecap="round"
-                                />
-                                <circle cx="100" cy="20" r="4" fill="var(--primary-color)" className="animate-pulse" />
-                            </svg>
-
-                            <div className="absolute right-0 top-0 -translate-y-full mb-4 bg-primary text-white px-3 py-1 rounded-lg text-xs font-bold shadow-xl">
-                                Live: 94.2%
-                            </div>
-                        </div>
-
-                        <div className="flex justify-between mt-6 pt-6 border-t border-white/5">
-                            <div className="flex gap-8">
-                                <div>
-                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Peak Accuracy</p>
-                                    <p className="text-white font-bold">96.8%</p>
-                                </div>
-                                <div>
-                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Avg response</p>
-                                    <p className="text-white font-bold">42ms</p>
-                                </div>
-                                <div>
-                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Inference</p>
-                                    <p className="text-white font-bold">Real-time</p>
-                                </div>
-                            </div>
-                            <button className="text-primary text-sm font-bold flex items-center gap-1 hover:gap-2 transition-all">
-                                View detailed report <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                            </button>
-                        </div>
-                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-white/5 rounded-3xl p-6">
@@ -218,25 +152,17 @@ const Dashboard = () => {
                 </div>
 
                 <div className="space-y-8">
-                    <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] p-6 relative overflow-hidden">
-
-                        <div className="absolute top-0 right-0 size-32 bg-primary/20 blur-[60px] -mr-16 -mt-16"></div>
-                        <h3 className="text-lg font-bold text-white mb-2 relative z-10 text-blue-300">System Health</h3>
-                        <div className="space-y-4 relative z-10">
-
-                            <div className="space-y-1.5">
-                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
-                                    <span className="text-slate-400">RAM Usage</span>
-                                    <span className="text-slate-300">4.2GB</span>
-                                </div>
-                                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                                    <div className="h-full bg-slate-500 rounded-full transition-all duration-1000" style={{ width: '52%' }}></div>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2 mt-6 p-3 bg-primary/10 border border-primary/20 rounded-2xl">
-                                <span className="material-symbols-outlined text-primary">info</span>
-                                <p className="text-[10px] text-slate-300 leading-tight">All systems operational. Latency levels optimal for real-time inference.</p>
-                            </div>
+                    <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6">
+                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-2">
+                            <span className="text-slate-400">RAM Usage</span>
+                            <span className="text-slate-300">4.2GB</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden mb-4">
+                            <div className="h-full bg-slate-500 rounded-full transition-all duration-1000" style={{ width: '52%' }}></div>
+                        </div>
+                        <div className="flex items-center gap-2 p-3 bg-primary/10 border border-primary/20 rounded-2xl">
+                            <span className="material-symbols-outlined text-primary">info</span>
+                            <p className="text-[10px] text-slate-300 leading-tight">All systems operational. Latency levels optimal for real-time inference.</p>
                         </div>
                     </div>
                 </div>
@@ -246,4 +172,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
